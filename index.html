@@ -93,9 +93,12 @@
     <div class="wrap">
       <h2 class="section-title" id="work-title" data-i18n="nav.work">Work</h2>
       <p class="section-sub mono" data-i18n="work.sub">Each thumbnail is drawn from the project's own numbers.</p>
-      <ul class="work-grid" id="work-grid"></ul>
-      <div class="pager" id="work-pager" role="group" aria-label="Work pages" data-i18n-aria="aria.workPages"></div>
     </div>
+    <div class="marquee" id="work-marquee">
+      <div class="marquee-row" data-dir="right"><ul class="marquee-track"></ul></div>
+      <div class="marquee-row" data-dir="left"><ul class="marquee-track"></ul></div>
+    </div>
+    <p class="wrap marquee-hint mono" data-i18n="work.hint">Hover a row to pause it, click a tile to open the project.</p>
   </section>
 
   <section class="notebook" id="notebook" aria-labelledby="notebook-title">

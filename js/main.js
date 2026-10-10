@@ -3,7 +3,6 @@
   if (!DATA) return;
 
   const STORAGE_KEY = "portfolio-lang";
-  const PAGE_SIZE = 8;
   const MONTHS = {
     en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
     id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
@@ -12,7 +11,6 @@
 
   const state = {
     lang: pickLanguage(),
-    page: 0,
     year: null,
     openIndex: -1,
     lastFocus: null,
@@ -235,57 +233,58 @@
     return m || null;
   }
 
-  function renderWork(focusPager) {
-    const grid = document.getElementById("work-grid");
-    const pager = document.getElementById("work-pager");
-    const pages = Math.max(1, Math.ceil(DATA.projects.length / PAGE_SIZE));
-    if (state.page >= pages) state.page = pages - 1;
-    if (grid.offsetHeight) grid.style.minHeight = grid.offsetHeight + "px";
-    grid.innerHTML = "";
-    const start = state.page * PAGE_SIZE;
-    DATA.projects.slice(start, start + PAGE_SIZE).forEach(function (project, i) {
-      const index = start + i;
-      const metric = headlineMetric(project);
-      const button = el("button", {
-        type: "button",
-        class: "tile-button",
-        "data-index": String(index)
-      }, [
-        el("span", { class: "tile-viz", html: drawViz(project), "aria-hidden": "true" }),
-        el("span", { class: "tile-meta" }, [
-          el("span", { class: "tile-title", text: t(project.title) }),
-          metric ? el("span", { class: "tile-metric" }, [
-            el("b", { text: numberText(metric.value) }),
-            el("span", { class: "mono", text: t(metric.label) })
-          ]) : null
-        ])
-      ]);
-      button.addEventListener("click", function () { openProject(index, button); });
-      button.addEventListener("pointermove", function (e) {
-        const rect = button.getBoundingClientRect();
-        button.style.setProperty("--mx", (e.clientX - rect.left) + "px");
-        button.style.setProperty("--my", (e.clientY - rect.top) + "px");
-      });
-      const li = el("li", { class: "tile" }, [button]);
-      if (state.settled || reduceMotion) li.classList.add("is-settled");
-      else li.style.animationDelay = (i * 55) + "ms";
-      grid.appendChild(li);
+  function buildTile(project, index, isClone) {
+    const metric = headlineMetric(project);
+    const button = el("button", {
+      type: "button",
+      class: "tile-button",
+      tabindex: isClone ? "-1" : null,
+      "data-index": String(index)
+    }, [
+      el("span", { class: "tile-viz", html: drawViz(project), "aria-hidden": "true" }),
+      el("span", { class: "tile-meta" }, [
+        el("span", { class: "tile-title", text: t(project.title) }),
+        metric ? el("span", { class: "tile-metric" }, [
+          el("b", { text: numberText(metric.value) }),
+          el("span", { class: "mono", text: t(metric.label) })
+        ]) : null
+      ])
+    ]);
+    button.addEventListener("click", function () { openProject(index, button); });
+    button.addEventListener("pointermove", function (e) {
+      const rect = button.getBoundingClientRect();
+      button.style.setProperty("--mx", (e.clientX - rect.left) + "px");
+      button.style.setProperty("--my", (e.clientY - rect.top) + "px");
     });
-    pager.innerHTML = "";
-    pager.hidden = pages < 2;
-    for (let p = 0; p < pages && pages > 1; p++) {
-      const b = el("button", {
-        type: "button",
-        "aria-label": ui("work.page", { n: p + 1, total: pages }),
-        "aria-current": p === state.page ? "true" : "false"
+    return el("li", {
+      class: "tile" + (isClone ? " is-clone" : ""),
+      "aria-hidden": isClone ? "true" : null,
+      inert: isClone ? true : null
+    }, [button]);
+  }
+
+  function renderWork() {
+    const tracks = document.querySelectorAll("#work-marquee .marquee-track");
+    const half = Math.ceil(DATA.projects.length / tracks.length);
+    tracks.forEach(function (track, row) {
+      const start = row * half;
+      const items = DATA.projects.slice(start, start + half);
+      track.innerHTML = "";
+      [false, true].forEach(function (isClone) {
+        items.forEach(function (project, i) {
+          track.appendChild(buildTile(project, start + i, isClone));
+        });
       });
-      b.addEventListener("click", function () {
-        state.page = p;
-        renderWork(true);
-      });
-      pager.appendChild(b);
-    }
-    if (focusPager && pager.children[state.page]) pager.children[state.page].focus({ preventScroll: true });
+      track.style.setProperty("--marquee-duration", Math.max(24, items.length * 7) + "s");
+    });
+  }
+
+  function setupMarquee() {
+    const marquee = document.getElementById("work-marquee");
+    if (!marquee || !("IntersectionObserver" in window)) return;
+    new IntersectionObserver(function (records) {
+      marquee.classList.toggle("is-offscreen", !records[0].isIntersecting);
+    }).observe(marquee);
   }
 
   function openProject(index, trigger) {
@@ -593,7 +592,7 @@
     renderAbout();
     renderQuote();
     renderSkills();
-    renderWork(false);
+    renderWork();
     renderNotebook(false);
     renderContact();
     if (state.openIndex >= 0) fillDialog();
@@ -606,4 +605,5 @@
   setupContact();
   setupRail();
   setupSignature();
+  setupMarquee();
 })();
