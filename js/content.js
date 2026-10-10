@@ -30,33 +30,36 @@ window.PORTFOLIO = {
     ]
   },
 
-  quote: {
-    text: { en: "All models are wrong, but some are useful.", id: "All models are wrong, but some are useful." },
-    first: "George E. P.",
-    last: "Box"
+  now: {
+    en: "Finishing the TB benchmark paper and applying for data science internships through BINUS.",
+    id: "Lagi menyelesaikan paper benchmark TBC sambil daftar magang data science lewat BINUS."
   },
 
   skills: [
     {
       icon: "data",
+      project: "textmining",
       title: { en: "Data", id: "Data" },
       tools: "SQL · pandas · scraping",
       proof: { en: "5,000 articles crawled, deduped to 4,979", id: "5.000 artikel di-crawl, sisa 4.979 setelah dedup" }
     },
     {
       icon: "model",
+      project: "automl",
       title: { en: "Modeling", id: "Pemodelan" },
       tools: "scikit-learn · XGBoost · statsmodels",
       proof: { en: "nested CV, Holm-corrected tests", id: "nested CV, uji dengan koreksi Holm" }
     },
     {
       icon: "deep",
+      project: "textmining",
       title: { en: "Deep Learning", id: "Deep Learning" },
       tools: "PyTorch · Transformers · LoRA",
       proof: { en: "IndoBERT at 95.68% test accuracy", id: "IndoBERT, akurasi uji 95,68%" }
     },
     {
       icon: "cloud",
+      project: "sagemaker",
       title: { en: "Deployment", id: "Deployment" },
       tools: "FastAPI · Streamlit · AWS SageMaker",
       proof: { en: "models served behind FastAPI and SageMaker", id: "model disajikan lewat FastAPI dan SageMaker" }
@@ -82,6 +85,7 @@ window.PORTFOLIO = {
   projects: [
     {
       id: "scanl",
+      featured: true,
       year: "2026",
       context: { en: "Product built with a teammate · I built the engine, benchmarks and security layer · since Jun 2026", id: "Produk bareng satu teman · engine, benchmark, dan lapisan keamanannya saya yang bangun · sejak Jun 2026" },
       title: { en: "Vanscroft's ScanL", id: "Vanscroft's ScanL" },
@@ -125,6 +129,7 @@ window.PORTFOLIO = {
     },
     {
       id: "automl",
+      featured: true,
       year: "2026",
       context: { en: "Part of ScanL · Jul to Aug 2026", id: "Bagian dari ScanL · Jul sampai Agu 2026" },
       title: { en: "AutoML That Refuses to Lie", id: "AutoML yang Jujur soal Skor" },
@@ -167,6 +172,7 @@ window.PORTFOLIO = {
     },
     {
       id: "eveline",
+      featured: true,
       year: "2026",
       context: { en: "Personal project · Aug 2026", id: "Proyek pribadi · Agu 2026" },
       title: { en: "Eveline, a 1.5B Code Model", id: "Eveline, Model Kode 1,5B" },
@@ -207,6 +213,7 @@ window.PORTFOLIO = {
     },
     {
       id: "tb",
+      featured: true,
       year: "2026",
       context: { en: "Research Methodology · IEEE paper draft · team of 2", id: "Research Methodology · draf paper IEEE · tim 2 orang" },
       title: { en: "Could 2019 Data Predict the TB Notification Drop?", id: "Bisakah Data 2019 Menebak Turunnya Notifikasi TBC?" },
@@ -748,15 +755,29 @@ window.PORTFOLIO = {
       "nav.contact": "Contact",
       "hello.strong": "Hello",
       "hello.light": "there",
-      "hero.caption": "fig. 0 · {n} points · seeded heightmap, hover to read a point",
+      "hero.lead": "I teach models to tell",
+      "loader.label": "fitting {n} points",
+      "cursor.open": "Open",
+      "stat.caption": "accuracy my old AutoML reported on pure noise. Since then every result here ships with a baseline.",
+      "stat.cta": "open the AutoML case",
+      "work.more": "More work",
+      "skills.evidence": "see the evidence",
+      "hero.signal": "signal",
+      "hero.joiner": "from",
+      "hero.noise": "noise",
+      "hero.status": "Open to internships",
+      "hero.addNoise": "Add noise",
+      "hero.fitting": "fitting",
+      "hero.fitted": "fitted",
+      "hero.suspicious": "suspiciously perfect",
+      "about.now": "Now",
+      "aria.main": "Main",
       "skills.linkLead": "Every tool above shows up in",
       "skills.linkStrong": "the work below",
       "skills.languages": "Languages",
       "skills.credential": "Certification",
       "credential.verify": "Verify badge",
-      "aria.sections": "Sections",
       "aria.language": "Language",
-      "aria.quote": "Quote",
       "aria.year": "Year",
       "contact.fallback": "If no email app opened, write to {email}.",
       "work.sub": "Each thumbnail is drawn from the project's own numbers.",
@@ -797,15 +818,29 @@ window.PORTFOLIO = {
       "nav.contact": "Kontak",
       "hello.strong": "Halo,",
       "hello.light": "salam kenal",
-      "hero.caption": "gbr. 0 · {n} titik · heightmap dengan seed tetap, arahkan kursor buat baca satu titik",
+      "hero.lead": "Saya melatih model untuk memilah",
+      "loader.label": "fitting {n} titik",
+      "cursor.open": "Buka",
+      "stat.caption": "akurasi yang dilaporkan AutoML lama saya di data yang isinya noise semua. Sejak itu, semua hasil di sini selalu ditemani baseline.",
+      "stat.cta": "buka kasus AutoML-nya",
+      "work.more": "Proyek lainnya",
+      "skills.evidence": "lihat buktinya",
+      "hero.signal": "sinyal",
+      "hero.joiner": "dari",
+      "hero.noise": "noise",
+      "hero.status": "Lagi cari magang",
+      "hero.addNoise": "Tambah noise",
+      "hero.fitting": "fitting",
+      "hero.fitted": "fitted",
+      "hero.suspicious": "kok sempurna banget? curiga",
+      "about.now": "Sekarang",
+      "aria.main": "Utama",
       "skills.linkLead": "Semua tool di atas kepakai di",
       "skills.linkStrong": "proyek-proyek di bawah ini",
       "skills.languages": "Bahasa pemrograman",
       "skills.credential": "Sertifikasi",
       "credential.verify": "Cek badge",
-      "aria.sections": "Bagian halaman",
       "aria.language": "Bahasa",
-      "aria.quote": "Kutipan",
       "aria.year": "Tahun",
       "contact.fallback": "Kalau aplikasi email tidak terbuka, kirim langsung ke {email}.",
       "work.sub": "Tiap thumbnail digambar dari angka proyeknya sendiri.",

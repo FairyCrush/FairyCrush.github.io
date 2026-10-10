@@ -8,6 +8,10 @@
     id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
   };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canTilt = !reduceMotion && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  const NOISE_GLYPHS = "01#%&?/<>\|=+*~^";
+  let noiseTimer = 0;
+  let heroState = "fitting";
 
   const state = {
     lang: pickLanguage(),
@@ -94,12 +98,6 @@
     return node;
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"]/g, function (c) {
-      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
-    });
-  }
-
   function formatDate(iso) {
     const parts = iso.split("-").map(Number);
     const month = MONTHS[state.lang][parts[1] - 1];
@@ -115,13 +113,6 @@
     instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor"/></svg>'
   };
 
-  const SKILL_ICONS = {
-    data: '<svg viewBox="0 0 48 48"><ellipse cx="24" cy="11" rx="14" ry="5"/><path d="M10 11v26c0 2.8 6.3 5 14 5s14-2.2 14-5V11"/><path d="M10 20c0 2.8 6.3 5 14 5s14-2.2 14-5"/><path class="accent" d="M10 29c0 2.8 6.3 5 14 5s14-2.2 14-5"/></svg>',
-    model: '<svg viewBox="0 0 48 48"><path d="M6 42h36M6 42V6"/><circle class="dot" cx="13" cy="33" r="1.8"/><circle class="dot" cx="18" cy="30" r="1.8"/><circle class="dot" cx="21" cy="25" r="1.8"/><circle class="dot" cx="27" cy="23" r="1.8"/><circle class="dot" cx="31" cy="17" r="1.8"/><circle class="dot" cx="36" cy="14" r="1.8"/><circle class="dot accent" cx="30" cy="33" r="2.2"/><path class="accent" d="M9 37 40 10"/></svg>',
-    deep: '<svg viewBox="0 0 48 48"><circle cx="8" cy="14" r="3"/><circle cx="8" cy="34" r="3"/><circle cx="24" cy="9" r="3"/><circle cx="24" cy="24" r="3"/><circle cx="24" cy="39" r="3"/><circle class="accent" cx="40" cy="24" r="3"/><path d="M11 14l10-5M11 14l10 10M11 14l10 25M11 34l10-25M11 34l10-10M11 34l10 5"/><path class="accent" d="M27 9l10 13M27 24h10M27 39l10-13"/></svg>',
-    cloud: '<svg viewBox="0 0 48 48"><path d="M14 34h21a8 8 0 0 0 0-16 11 11 0 0 0-21-2 8 8 0 0 0 0 18z"/><path class="accent" d="M24 42V24"/><path class="accent" d="m18 30 6-6 6 6"/></svg>'
-  };
-
   function applyStaticText() {
     document.documentElement.lang = state.lang;
     document.querySelectorAll("[data-i18n]").forEach(function (node) {
@@ -133,20 +124,16 @@
     document.querySelectorAll("[data-i18n-aria]").forEach(function (node) {
       node.setAttribute("aria-label", ui(node.getAttribute("data-i18n-aria")));
     });
-    document.querySelectorAll(".lang-switch button").forEach(function (btn) {
+    document.querySelectorAll("button[data-lang]").forEach(function (btn) {
       btn.setAttribute("aria-pressed", String(btn.getAttribute("data-lang") === state.lang));
     });
+    settleNoiseWord();
     document.title = DATA.person.name + " · " + t(DATA.person.titleTag);
   }
 
   function renderHero() {
     document.getElementById("person-name").textContent = DATA.person.name;
     document.getElementById("person-role").textContent = t(DATA.person.role);
-    const caption = document.getElementById("hero-caption");
-    if (caption) {
-      const points = window.HeroScene ? window.HeroScene.points.toLocaleString(state.lang === "id" ? "id-ID" : "en-US") : "";
-      caption.textContent = ui("hero.caption", { n: points });
-    }
     const avatar = document.getElementById("avatar");
     if (avatar && !avatar.dataset.ready) {
       avatar.dataset.ready = "1";
@@ -182,23 +169,31 @@
         ])
       ]));
     });
+    if (DATA.now) {
+      wrap.appendChild(el("p", { class: "now-line" }, [
+        el("span", { class: "now-label mono" }, [el("span", { class: "status-dot", "aria-hidden": "true" }), ui("about.now")]),
+        el("span", { text: t(DATA.now) })
+      ]));
+    }
   }
 
-  function renderQuote() {
-    document.getElementById("quote-text").textContent = "“" + t(DATA.quote.text) + "”";
-    const by = document.getElementById("quote-by");
-    by.innerHTML = escapeHtml(DATA.quote.first) + " <b>" + escapeHtml(DATA.quote.last) + "</b>";
+  function renderStat() {
+    const number = document.getElementById("stat-number");
+    if (number && !number.dataset.counting) number.textContent = numberText("0.948");
   }
 
   function renderSkills() {
     const list = document.getElementById("skill-list");
     list.innerHTML = "";
-    DATA.skills.forEach(function (skill) {
+    DATA.skills.forEach(function (skill, i) {
       list.appendChild(el("li", { class: "skill" }, [
-        el("div", { class: "skill-icon", html: SKILL_ICONS[skill.icon] || SKILL_ICONS.model, "aria-hidden": "true" }),
-        el("h3", { text: t(skill.title) }),
-        el("p", { text: skill.tools }),
-        skill.proof ? el("span", { class: "skill-proof mono", text: t(skill.proof) }) : null
+        el("button", { class: "skill-card", type: "button", "data-project": skill.project || null, "data-cursor": "open" }, [
+          el("span", { class: "skill-index mono", text: String(i + 1).padStart(2, "0") }),
+          el("span", { class: "skill-title", text: t(skill.title) }),
+          el("span", { class: "skill-proof", text: t(skill.proof) }),
+          el("span", { class: "skill-tools mono", text: skill.tools }),
+          el("span", { class: "skill-cta mono", text: ui("skills.evidence") })
+        ])
       ]));
     });
 
@@ -233,13 +228,32 @@
     return m || null;
   }
 
+  function attachTilt(button, strength) {
+    button.addEventListener("pointermove", function (e) {
+      const rect = button.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      button.style.setProperty("--mx", px + "px");
+      button.style.setProperty("--my", py + "px");
+      if (canTilt) {
+        button.style.setProperty("--ry", ((px / rect.width - 0.5) * strength).toFixed(2) + "deg");
+        button.style.setProperty("--rx", ((0.5 - py / rect.height) * strength).toFixed(2) + "deg");
+      }
+    });
+    button.addEventListener("pointerleave", function () {
+      button.style.setProperty("--rx", "0deg");
+      button.style.setProperty("--ry", "0deg");
+    });
+  }
+
   function buildTile(project, index, isClone) {
     const metric = headlineMetric(project);
     const button = el("button", {
       type: "button",
       class: "tile-button",
       tabindex: isClone ? "-1" : null,
-      "data-index": String(index)
+      "data-index": String(index),
+      "data-cursor": "open"
     }, [
       el("span", { class: "tile-viz", html: drawViz(project), "aria-hidden": "true" }),
       el("span", { class: "tile-meta" }, [
@@ -251,11 +265,7 @@
       ])
     ]);
     button.addEventListener("click", function () { openProject(index, button); });
-    button.addEventListener("pointermove", function (e) {
-      const rect = button.getBoundingClientRect();
-      button.style.setProperty("--mx", (e.clientX - rect.left) + "px");
-      button.style.setProperty("--my", (e.clientY - rect.top) + "px");
-    });
+    attachTilt(button, 12);
     return el("li", {
       class: "tile" + (isClone ? " is-clone" : ""),
       "aria-hidden": isClone ? "true" : null,
@@ -263,38 +273,104 @@
     }, [button]);
   }
 
+  function buildFeature(project, index, wide) {
+    const metric = headlineMetric(project);
+    const button = el("button", {
+      type: "button",
+      class: "feature-card",
+      "data-index": String(index),
+      "data-cursor": "open"
+    }, [
+      el("span", { class: "feature-viz", html: drawViz(project), "aria-hidden": "true" }),
+      el("span", { class: "feature-body" }, [
+        el("span", { class: "feature-context mono", text: t(project.context) }),
+        el("span", { class: "feature-title", text: t(project.title) }),
+        el("span", { class: "feature-lead", text: t(project.lead) }),
+        metric ? el("span", { class: "feature-metric" }, [
+          el("b", { text: numberText(metric.value) }),
+          el("span", { class: "mono", text: t(metric.label) })
+        ]) : null
+      ])
+    ]);
+    button.addEventListener("click", function () { openProject(index, button); });
+    attachTilt(button, 6);
+    return el("li", { class: "feature" + (wide ? " feature-wide" : "") }, [button]);
+  }
+
   function renderWork() {
-    const tracks = document.querySelectorAll("#work-marquee .marquee-track");
-    const half = Math.ceil(DATA.projects.length / tracks.length);
-    tracks.forEach(function (track, row) {
-      const start = row * half;
-      const items = DATA.projects.slice(start, start + half);
-      track.innerHTML = "";
-      [false, true].forEach(function (isClone) {
-        items.forEach(function (project, i) {
-          track.appendChild(buildTile(project, start + i, isClone));
-        });
-      });
-      track.style.setProperty("--marquee-duration", Math.max(24, items.length * 7) + "s");
+    const featuredList = document.getElementById("work-featured");
+    const rest = [];
+    if (featuredList) featuredList.innerHTML = "";
+    DATA.projects.forEach(function (project, index) {
+      if (project.featured && featuredList) {
+        featuredList.appendChild(buildFeature(project, index, featuredList.children.length === 0));
+      } else {
+        rest.push({ project: project, index: index });
+      }
     });
+    const tracks = document.querySelectorAll("#work-marquee .marquee-track");
+    const per = Math.ceil(rest.length / tracks.length);
+    tracks.forEach(function (track, row) {
+      const items = rest.slice(row * per, row * per + per);
+      track.innerHTML = "";
+      items.forEach(function (it) { track.appendChild(buildTile(it.project, it.index, false)); });
+      const setWidth = Math.max(1, track.scrollWidth);
+      const copies = Math.max(2, Math.ceil((window.innerWidth * 2) / setWidth));
+      for (let c = 1; c < copies; c++) {
+        items.forEach(function (it) { track.appendChild(buildTile(it.project, it.index, true)); });
+      }
+      track.style.setProperty("--copies", String(copies));
+      track.style.setProperty("--marquee-duration", Math.max(18, Math.round(setWidth / 38)) + "s");
+    });
+    state.workWidth = window.innerWidth;
   }
 
   function setupMarquee() {
     const marquee = document.getElementById("work-marquee");
+    let resizeTimer = 0;
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(function () {
+        if (Math.abs(window.innerWidth - (state.workWidth || 0)) > 40) renderWork();
+      }, 300);
+    });
     if (!marquee || !("IntersectionObserver" in window)) return;
     new IntersectionObserver(function (records) {
-      marquee.classList.toggle("is-offscreen", !records[0].isIntersecting);
+      marquee.classList.toggle("is-offscreen", !records[records.length - 1].isIntersecting);
     }).observe(marquee);
+  }
+
+  function projectIndex(id) {
+    for (let i = 0; i < DATA.projects.length; i++) {
+      if (DATA.projects[i].id === id) return i;
+    }
+    return -1;
   }
 
   function openProject(index, trigger) {
     const dialog = document.getElementById("project-dialog");
-    if (!dialog || typeof dialog.showModal !== "function") return;
+    if (!dialog || typeof dialog.showModal !== "function" || index < 0) return;
     if (trigger) state.lastFocus = trigger;
     state.openIndex = index;
-    fillDialog();
-    if (!dialog.open) dialog.showModal();
-    document.getElementById("dialog-title").focus({ preventScroll: true });
+    const target = document.getElementById("dialog-viz");
+    const source = trigger && !dialog.open ? trigger.querySelector(".tile-viz, .feature-viz") : null;
+    function show() {
+      fillDialog();
+      if (!dialog.open) dialog.showModal();
+      document.getElementById("dialog-title").focus({ preventScroll: true });
+    }
+    if (source && document.startViewTransition && !reduceMotion) {
+      target.style.viewTransitionName = "";
+      source.style.viewTransitionName = "project-viz";
+      const transition = document.startViewTransition(function () {
+        source.style.viewTransitionName = "";
+        target.style.viewTransitionName = "project-viz";
+        show();
+      });
+      transition.finished.finally(function () { target.style.viewTransitionName = ""; });
+      return;
+    }
+    show();
   }
 
   function fillDialog() {
@@ -349,7 +425,16 @@
     });
     dialog.addEventListener("close", function () {
       state.openIndex = -1;
-      if (state.lastFocus && document.body.contains(state.lastFocus)) state.lastFocus.focus();
+      document.getElementById("dialog-viz").style.viewTransitionName = "";
+      if (state.lastFocus && document.body.contains(state.lastFocus)) state.lastFocus.focus({ preventScroll: true });
+    });
+    document.addEventListener("click", function (e) {
+      const trigger = e.target.closest ? e.target.closest("[data-project]") : null;
+      if (!trigger) return;
+      const index = projectIndex(trigger.getAttribute("data-project"));
+      if (index < 0) return;
+      e.preventDefault();
+      openProject(index, trigger);
     });
   }
 
@@ -392,7 +477,9 @@
       if (has) {
         b.addEventListener("click", function () {
           const target = document.querySelector('.entry[data-month="' + (i + 1) + '"]');
-          if (target) target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+          if (!target) return;
+          if (window.__lenis) window.__lenis.scrollTo(target, { offset: -window.innerHeight / 3 });
+          else target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
         });
       }
       months.appendChild(b);
@@ -424,7 +511,11 @@
     list.innerHTML = "";
     const projectById = {};
     DATA.projects.forEach(function (p) { projectById[p.id] = p; });
+    const shown = {};
     entries.forEach(function (entry, i) {
+      const visualKey = entry.project || ("credential-" + entry.credential);
+      const showVisual = !shown[visualKey];
+      shown[visualKey] = true;
       const moreId = "entry-more-" + i;
       const toggle = entry.more ? el("button", {
         type: "button",
@@ -436,11 +527,11 @@
       const more = entry.more ? el("div", { class: "entry-more", id: moreId, inert: true }, [el("div", null, [el("p", { text: t(entry.more) })])]) : null;
       const li = el("li", { class: "entry" + (state.settled ? " is-in" : ""), "data-month": String(Number(entry.date.slice(5, 7))) }, [
         el("span", { class: "entry-day" + (entry.date.length < 10 ? " is-month" : ""), "aria-hidden": "true", text: entry.date.length < 10 ? MONTHS[state.lang][Number(entry.date.slice(5, 7)) - 1] : String(Number(entry.date.slice(8, 10))) }),
-        el("article", { class: "entry-card" + (toggle ? "" : " no-toggle") }, [
-          entryVisual(entry, projectById),
+        el("article", { class: "entry-card" + (toggle ? "" : " no-toggle") + (showVisual ? "" : " no-visual") }, [
+          showVisual ? entryVisual(entry, projectById) : null,
           el("div", { class: "entry-text" }, [
             el("p", { class: "entry-date mono", text: formatDate(entry.date) }),
-            el("h3", { text: t(entry.title) }),
+            el("h3", null, [entry.project ? el("button", { class: "entry-link", type: "button", "data-project": entry.project, text: t(entry.title) }) : t(entry.title)]),
             el("p", { text: t(entry.summary) }),
             more,
             toggle
@@ -525,7 +616,7 @@
   }
 
   function setupLanguage() {
-    document.querySelectorAll(".lang-switch button").forEach(function (btn) {
+    document.querySelectorAll("button[data-lang]").forEach(function (btn) {
       btn.addEventListener("click", function () {
         const lang = btn.getAttribute("data-lang");
         if (lang === state.lang) return;
@@ -537,28 +628,22 @@
   }
 
   function setupRail() {
-    const staticNav = document.getElementById("rail-static");
-    const floating = document.getElementById("rail-floating");
-    const list = staticNav.querySelector("ol");
-    const clone = list.cloneNode(true);
-    clone.querySelectorAll("a").forEach(function (a) { a.setAttribute("tabindex", "-1"); });
-    floating.appendChild(clone);
-    const groups = [list, clone].map(function (ol) {
-      return Array.prototype.slice.call(ol.querySelectorAll("a"));
-    });
+    const groups = [Array.prototype.slice.call(document.querySelectorAll(".topnav-links a"))];
     const sections = groups[0].map(function (a) { return document.getElementById(a.getAttribute("data-target")); });
+    const nav = document.getElementById("topnav");
+    const hero = document.getElementById("top");
     let ticking = false;
     function update() {
       ticking = false;
       const vh = window.innerHeight;
-      floating.classList.toggle("is-visible", staticNav.getBoundingClientRect().bottom < 0);
-      let active = 0;
+      let active = -1;
       sections.forEach(function (s, i) {
         if (s && s.getBoundingClientRect().top < vh * 0.45) active = i;
       });
       groups.forEach(function (links) {
         links.forEach(function (a, i) { a.setAttribute("aria-current", String(i === active)); });
       });
+      if (nav && hero) nav.classList.toggle("is-past-hero", hero.getBoundingClientRect().bottom < 72);
     }
     window.addEventListener("scroll", function () {
       if (!ticking) {
@@ -567,6 +652,85 @@
       }
     }, { passive: true });
     update();
+  }
+
+  function setupClock() {
+    const clock = document.getElementById("clock");
+    if (!clock || typeof Intl === "undefined") return;
+    let formatter;
+    try {
+      formatter = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jakarta" });
+    } catch (err) {
+      return;
+    }
+    function tick() {
+      const now = new Date();
+      clock.textContent = formatter.format(now);
+      clock.setAttribute("datetime", now.toISOString());
+    }
+    tick();
+    setInterval(tick, 15000);
+  }
+
+  function scrambleOnce(word, settle) {
+    const target = ui("hero.noise");
+    let out = "";
+    for (let i = 0; i < target.length; i++) {
+      out += settle && Math.random() < settle ? target[i] : NOISE_GLYPHS[Math.floor(Math.random() * NOISE_GLYPHS.length)];
+    }
+    word.textContent = out;
+  }
+
+  function settleNoiseWord() {
+    const word = document.getElementById("noise-word");
+    if (word && (heroState === "done" || reduceMotion)) word.textContent = ui("hero.noise");
+  }
+
+  function runNoise(ms) {
+    const word = document.getElementById("noise-word");
+    if (!word || reduceMotion) return;
+    clearInterval(noiseTimer);
+    const started = performance.now();
+    noiseTimer = setInterval(function () {
+      const elapsed = performance.now() - started;
+      if (heroState === "done" && (!ms || elapsed > ms)) {
+        clearInterval(noiseTimer);
+        word.textContent = ui("hero.noise");
+        return;
+      }
+      scrambleOnce(word, heroState === "done" ? elapsed / ms : 0.15);
+    }, 70);
+  }
+
+  function setupNoiseWord() {
+    const fit = document.getElementById("hero-fit");
+    heroState = fit ? fit.getAttribute("data-state") || "fitting" : "done";
+    document.addEventListener("hero:state", function (e) {
+      heroState = e.detail.state;
+      if (heroState !== "done") runNoise(0);
+    });
+    const word = document.getElementById("noise-word");
+    if (word) {
+      word.parentNode.addEventListener("pointerenter", function () {
+        if (heroState === "done") runNoise(650);
+      });
+    }
+    if (heroState !== "done") runNoise(0); else settleNoiseWord();
+  }
+
+  function setupReveal() {
+    const titles = document.querySelectorAll(".section-title");
+    if (reduceMotion || !("IntersectionObserver" in window)) return;
+    document.documentElement.classList.add("can-reveal");
+    const io = new IntersectionObserver(function (records) {
+      records.forEach(function (r) {
+        if (r.isIntersecting) {
+          r.target.classList.add("is-revealed");
+          io.unobserve(r.target);
+        }
+      });
+    }, { rootMargin: "0px 0px -12% 0px" });
+    titles.forEach(function (t) { io.observe(t); });
   }
 
   function setupSignature() {
@@ -590,12 +754,13 @@
     applyStaticText();
     renderHero();
     renderAbout();
-    renderQuote();
+    renderStat();
     renderSkills();
     renderWork();
     renderNotebook(false);
     renderContact();
     if (state.openIndex >= 0) fillDialog();
+    document.dispatchEvent(new CustomEvent("portfolio:rendered", { detail: { lang: state.lang } }));
   }
 
   renderAll();
@@ -606,4 +771,7 @@
   setupRail();
   setupSignature();
   setupMarquee();
+  setupClock();
+  setupNoiseWord();
+  setupReveal();
 })();

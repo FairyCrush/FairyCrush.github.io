@@ -60,8 +60,9 @@
       dot.setAttribute("cx", xy[0].toFixed(2));
       dot.setAttribute("cy", xy[1].toFixed(2));
       dot.setAttribute("r", "0.34");
-      const near = Math.hypot(xy[0] - home[0], xy[1] - home[1]) < 7;
-      dot.setAttribute("class", near ? "land near" : "land");
+      const distance = Math.hypot(xy[0] - home[0], xy[1] - home[1]);
+      dot.setAttribute("class", distance < 7 ? "land near" : "land");
+      dot.style.setProperty("--d", distance.toFixed(1));
       group.appendChild(dot);
     }
   }
@@ -84,4 +85,16 @@
   svg.parentNode.insertBefore(stage, svg);
   stage.appendChild(svg);
   stage.appendChild(ping);
+
+  const mapBox = stage.parentNode;
+  if ("IntersectionObserver" in window && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    mapBox.classList.add("can-wave");
+    const io = new IntersectionObserver(function (records) {
+      if (records[0].isIntersecting) {
+        mapBox.classList.add("is-in");
+        io.disconnect();
+      }
+    }, { threshold: 0.35 });
+    io.observe(mapBox);
+  }
 })();

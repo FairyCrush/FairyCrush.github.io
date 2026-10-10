@@ -2,9 +2,15 @@
   const canvas = document.getElementById("hero-canvas");
   if (!canvas || !canvas.getContext) return;
   const ctx = canvas.getContext("2d");
-  const probe = document.getElementById("hero-probe");
+  const glCanvas = document.getElementById("hero-gl");
+  const hero = document.getElementById("top");
+  const fit = document.getElementById("hero-fit");
+  const epochEl = document.getElementById("hero-epoch");
+  const lossEl = document.getElementById("hero-loss");
+  const noiseBtn = document.getElementById("hero-noise");
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const SEED = 17;
+  const EPOCHS = 120;
 
   function mulberry32(a) {
     return function () {
@@ -117,12 +123,29 @@
         x: X_MIN + c * DX,
         z: Z_MIN + r * DZ,
         h: h,
+        g: g / 255,
         fill: "rgb(" + g + "," + g + "," + (g + 3) + ")",
         reflectFill: "rgb(" + rg + "," + rg + "," + (rg + 2) + ")"
       });
     }
   }
   rock.sort(function (a, b) { return b.z - a.z; });
+
+  const count = rock.length;
+  const noiseRandom = mulberry32(SEED * 31);
+  const noisePos = new Float32Array(count * 3);
+  const delays = new Float32Array(count);
+  const travel = new Float32Array(count);
+  for (let i = 0; i < count; i++) {
+    const nx = (noiseRandom() * 2 - 1) * 1.95;
+    const ny = noiseRandom() * 0.95;
+    const nz = (noiseRandom() * 2 - 1) * 0.95;
+    noisePos[i * 3] = nx;
+    noisePos[i * 3 + 1] = ny;
+    noisePos[i * 3 + 2] = nz;
+    delays[i] = noiseRandom();
+    travel[i] = Math.hypot(rock[i].x - nx, rock[i].h - ny, rock[i].z - nz);
+  }
 
   const WATER_ROWS = 46;
   const WATER_COLS = 150;
@@ -139,20 +162,19 @@
     water.push({ z: z, xs: xs, phases: phases });
   }
 
-  const count = rock.length;
-  const projected = new Float32Array(count * 2);
-  const YAW = -0.04;
-  const FRAME_MS = 1000 / 30;
+  const camY = 0.55, dist = 3.2;
   let width = 0, height = 0, dpr = 1;
   let focal = 1, horizonY = 0, centerX = 0;
-  const camY = 0.55, dist = 3.2;
-  let pointer = null;
+  let built = false;
   let running = false;
   let visible = true;
   let frameId = 0;
   let lastFrame = 0;
   const startTime = performance.now();
   let snapshotTaken = false;
+  let scroll = 0;
+  let scrollChanged = 0;
+  const mouse = { x: -9999, y: -9999, tx: -9999, ty: -9999, strength: 0, target: 0 };
 
   function layer() {
     const c = document.createElement("canvas");
@@ -164,6 +186,209 @@
   const stone = layer();
   const reflection = layer();
 
+  let gl = null;
+  let program = null;
+  let uniforms = {};
+  try {
+    if (glCanvas && !reduceMotion) {
+      gl = glCanvas.getContext("webgl", { alpha: true, antialias: false, depth: false });
+    }
+  } catch (err) {
+    gl = null;
+  }
+
+  const VERT = [
+    "attribute vec3 aBase;",
+    "attribute vec3 aNoise;",
+    "attribute float aShade;",
+    "attribute float aDelay;",
+    "uniform vec2 uRes;",
+    "uniform float uMix;",
+    "uniform float uFocal;",
+    "uniform float uHorizon;",
+    "uniform float uCenterX;",
+    "uniform float uCamY;",
+    "uniform float uDist;",
+    "uniform float uYaw;",
+    "uniform float uPointScale;",
+    "uniform float uDpr;",
+    "uniform float uReflect;",
+    "uniform vec3 uMouse;",
+    "uniform float uScatter;",
+    "varying float vShade;",
+    "varying float vReflect;",
+    "void main() {",
+    "  float m = min(uMix, 1.0 - uScatter * 0.75);",
+    "  float t = clamp((m - aDelay * 0.35) / 0.65, 0.0, 1.0);",
+    "  t = 1.0 - (1.0 - t) * (1.0 - t) * (1.0 - t);",
+    "  vec3 p = mix(aNoise, aBase, t);",
+    "  float c = cos(uYaw);",
+    "  float s = sin(uYaw);",
+    "  float xr = p.x * c - p.z * s;",
+    "  float zr = p.x * s + p.z * c;",
+    "  float sc = uFocal / (uDist + zr);",
+    "  float y = mix(uCamY - p.y, uCamY + p.y, uReflect);",
+    "  vec2 screen = vec2(uCenterX + xr * sc, uHorizon + y * sc);",
+    "  vec2 d = screen - uMouse.xy;",
+    "  float len = length(d) + 0.0001;",
+    "  float f = max(0.0, 1.0 - len / 120.0);",
+    "  screen += (d / len) * f * f * 38.0 * uMouse.z * (1.0 - uReflect * 0.6);",
+    "  vec2 clip = screen / uRes * 2.0 - 1.0;",
+    "  gl_Position = vec4(clip.x, -clip.y, 0.0, 1.0);",
+    "  gl_PointSize = max(1.0, sc * uPointScale * mix(1.0, 1.8, uReflect)) * uDpr;",
+    "  vShade = aShade;",
+    "  vReflect = uReflect;",
+    "}"
+  ].join("\n");
+
+  const FRAG = [
+    "precision mediump float;",
+    "varying float vShade;",
+    "varying float vReflect;",
+    "void main() {",
+    "  if (vReflect > 0.5) {",
+    "    vec2 q = gl_PointCoord - 0.5;",
+    "    float a = (1.0 - smoothstep(0.05, 0.5, length(q))) * 0.3;",
+    "    float g = vShade * 0.55 + 0.12;",
+    "    gl_FragColor = vec4(vec3(g, g, g + 0.01) * a, a);",
+    "  } else {",
+    "    gl_FragColor = vec4(vShade, vShade, vShade + 0.012, 1.0);",
+    "  }",
+    "}"
+  ].join("\n");
+
+  function compile(type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+    return shader;
+  }
+
+  function setupGL() {
+    program = gl.createProgram();
+    gl.attachShader(program, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    gl.useProgram(program);
+    const data = new Float32Array(count * 8);
+    for (let i = 0; i < count; i++) {
+      const p = rock[i];
+      const o = i * 8;
+      data[o] = p.x;
+      data[o + 1] = p.h;
+      data[o + 2] = p.z;
+      data[o + 3] = noisePos[i * 3];
+      data[o + 4] = noisePos[i * 3 + 1];
+      data[o + 5] = noisePos[i * 3 + 2];
+      data[o + 6] = p.g;
+      data[o + 7] = delays[i];
+    }
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    [["aBase", 3, 0], ["aNoise", 3, 12], ["aShade", 1, 24], ["aDelay", 1, 28]].forEach(function (a) {
+      const loc = gl.getAttribLocation(program, a[0]);
+      gl.enableVertexAttribArray(loc);
+      gl.vertexAttribPointer(loc, a[1], gl.FLOAT, false, 32, a[2]);
+    });
+    ["uRes", "uMix", "uFocal", "uHorizon", "uCenterX", "uCamY", "uDist", "uYaw", "uPointScale", "uDpr", "uReflect", "uMouse", "uScatter"].forEach(function (name) {
+      uniforms[name] = gl.getUniformLocation(program, name);
+    });
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
+  }
+
+  if (gl) {
+    try {
+      setupGL();
+    } catch (err) {
+      gl = null;
+    }
+  }
+  if (gl) {
+    glCanvas.addEventListener("webglcontextlost", function (e) {
+      e.preventDefault();
+      gl = null;
+      if (noiseBtn) noiseBtn.hidden = true;
+      if (window.HeroScene) window.HeroScene.webgl = false;
+      fitMix = 1;
+      timeline = null;
+      build();
+      redrawOnce();
+    });
+  }
+
+  let fitMix = gl ? 0 : 1;
+  let timeline = null;
+  let lastState = "";
+  let lastReadout = 0;
+
+  let pausedAt = 0;
+  let lastMove = 0;
+
+  function play(segments) {
+    timeline = { segments: segments, start: -1 };
+    start();
+  }
+
+  function scatter() {
+    if (!gl) return;
+    const from = fitMix;
+    play([
+      { from: from, to: 0, dur: 650 * Math.max(0.3, from) },
+      { from: 0, to: 0, dur: 260 },
+      { from: 0, to: 1, dur: 2600 }
+    ]);
+  }
+
+  function advanceTimeline(now) {
+    if (!timeline) return;
+    if (timeline.start < 0) timeline.start = now;
+    let elapsed = now - timeline.start;
+    for (let i = 0; i < timeline.segments.length; i++) {
+      const s = timeline.segments[i];
+      if (elapsed <= s.dur) {
+        const k = s.dur > 0 ? elapsed / s.dur : 1;
+        fitMix = s.from + (s.to - s.from) * k;
+        return;
+      }
+      elapsed -= s.dur;
+    }
+    fitMix = timeline.segments[timeline.segments.length - 1].to;
+    timeline = null;
+  }
+
+  function easedProgress(i) {
+    let t = Math.min(1, Math.max(0, (fitMix - delays[i] * 0.35) / 0.65));
+    return 1 - (1 - t) * (1 - t) * (1 - t);
+  }
+
+  function updateReadout(now, force) {
+    if (!fit) return;
+    const state = fitMix >= 1 ? "done" : "fitting";
+    if (!force && state === lastState && now - lastReadout < 90) return;
+    lastReadout = now;
+    if (state !== lastState) {
+      fit.setAttribute("data-state", state);
+      lastState = state;
+      document.dispatchEvent(new CustomEvent("hero:state", { detail: { state: state } }));
+    }
+    let sum = 0;
+    const step = Math.max(1, Math.floor(count / 480));
+    let n = 0;
+    for (let i = 0; i < count; i += step) {
+      const d = (1 - easedProgress(i)) * travel[i];
+      sum += d * d;
+      n++;
+    }
+    const loss = n ? sum / n : 0;
+    if (lossEl) lossEl.textContent = (state === "done" ? 0 : loss).toFixed(4);
+    if (epochEl) epochEl.textContent = String(Math.round(fitMix * EPOCHS)).padStart(3, "0");
+  }
+
   function sizeLayer(l) {
     l.canvas.width = canvas.width;
     l.canvas.height = canvas.height;
@@ -171,19 +396,15 @@
     l.ctx.clearRect(0, 0, width, height);
   }
 
-  function project(x, y, z) {
-    const cos = Math.cos(YAW), sin = Math.sin(YAW);
-    const xr = x * cos - z * sin;
-    const zr = x * sin + z * cos;
-    const scale = focal / (dist + zr);
-    return { sx: centerX + xr * scale, sy: horizonY + (camY - y) * scale, ry: horizonY + (camY + y) * scale, scale: scale };
+  function currentYaw(now) {
+    return reduceMotion ? -0.04 : -0.04 + Math.sin((now - startTime) * 0.00011) * 0.06;
   }
 
   function paintSky(c) {
     const g = c.createLinearGradient(0, 0, 0, height);
     const hz = Math.max(0.05, Math.min(0.9, horizonY / height));
-    g.addColorStop(0, "#5d6064");
-    g.addColorStop(hz * 0.55, "#83868a");
+    g.addColorStop(0, "#4f5256");
+    g.addColorStop(hz * 0.55, "#7d8084");
     g.addColorStop(hz, "#b4b6b8");
     g.addColorStop(Math.min(0.98, hz + 0.08), "#a6a8aa");
     g.addColorStop(1, "#7b7e81");
@@ -224,16 +445,22 @@
     reflection.canvas.height = rh;
     const k = rw / width;
     reflection.ctx.setTransform(k, 0, 0, k, 0, 0);
+    const yaw = -0.04;
+    const cos = Math.cos(yaw), sin = Math.sin(yaw);
     const sizes = new Float32Array(count);
+    const projected = new Float32Array(count * 2);
     for (let i = 0; i < count; i++) {
       const p = rock[i];
-      const pr = project(p.x, p.h, p.z);
-      projected[i * 2] = pr.sx;
-      projected[i * 2 + 1] = pr.sy;
-      sizes[i] = Math.max(1, pr.scale * DX * 0.56);
-      const rs = Math.max(1.2, pr.scale * DX * 0.9);
+      const xr = p.x * cos - p.z * sin;
+      const zr = p.x * sin + p.z * cos;
+      const scale = focal / (dist + zr);
+      const sx = centerX + xr * scale;
+      projected[i * 2] = sx;
+      projected[i * 2 + 1] = horizonY + (camY - p.h) * scale;
+      sizes[i] = Math.max(1, scale * DX * 0.56);
+      const rs = Math.max(1.2, scale * DX * 0.9);
       reflection.ctx.fillStyle = p.reflectFill;
-      reflection.ctx.fillRect(pr.sx - rs / 2, pr.ry, rs * 1.4, rs * 1.6);
+      reflection.ctx.fillRect(sx - rs / 2, horizonY + (camY + p.h) * scale, rs * 1.4, rs * 1.6);
     }
     const c = stone.ctx;
     c.save();
@@ -248,7 +475,6 @@
     }
   }
 
-  let built = false;
   function build() {
     const rect = canvas.getBoundingClientRect();
     built = rect.width >= 1 && rect.height >= 1;
@@ -258,54 +484,71 @@
     height = rect.height;
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);
-    focal = width < 720 ? Math.min(1.05 * width, 1.5 * height) : Math.min(0.95 * width, 2.1 * height);
-    horizonY = height * 0.67 - (camY * focal) / dist;
-    centerX = width < 720 ? width * 0.5 : width * 0.57;
-    [sky, waterA, waterB, stone].forEach(sizeLayer);
+    const narrow = width < 720;
+    focal = narrow ? Math.min(1.3 * width, 0.95 * height) : Math.min(0.68 * width, 1.1 * height);
+    horizonY = height * (narrow ? 0.63 : 0.73) - (camY * focal) / dist;
+    centerX = narrow ? width * 0.5 : width * 0.62;
+    [sky, waterA, waterB].forEach(sizeLayer);
     paintSky(sky.ctx);
     paintWater(waterA.ctx, 0);
     paintWater(waterB.ctx, Math.PI);
-    paintStone();
+    if (gl) {
+      glCanvas.width = canvas.width;
+      glCanvas.height = canvas.height;
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      stone.canvas.width = 1;
+      stone.canvas.height = 1;
+    } else {
+      sizeLayer(stone);
+      paintStone();
+    }
   }
 
-  function paintProbe() {
-    if (!pointer) {
-      if (probe) probe.textContent = "";
-      return;
+  function drawGL(now) {
+    const yaw = currentYaw(now) + scroll * 0.9;
+    const zoom = 1 + scroll * 0.4;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(uniforms.uRes, width, height);
+    gl.uniform1f(uniforms.uMix, fitMix);
+    gl.uniform1f(uniforms.uFocal, focal * zoom);
+    gl.uniform1f(uniforms.uHorizon, horizonY - scroll * height * 0.12);
+    gl.uniform1f(uniforms.uCenterX, centerX);
+    gl.uniform1f(uniforms.uCamY, camY);
+    gl.uniform1f(uniforms.uDist, dist);
+    gl.uniform1f(uniforms.uYaw, yaw);
+    gl.uniform1f(uniforms.uPointScale, DX * 0.56);
+    gl.uniform1f(uniforms.uDpr, dpr);
+    gl.uniform3f(uniforms.uMouse, mouse.x, mouse.y, mouse.strength);
+    gl.uniform1f(uniforms.uScatter, scroll);
+    gl.uniform1f(uniforms.uReflect, 1);
+    gl.drawArrays(gl.POINTS, 0, count);
+    gl.uniform1f(uniforms.uReflect, 0);
+    gl.drawArrays(gl.POINTS, 0, count);
+    return yaw;
+  }
+
+  function takeSnapshot() {
+    try {
+      const small = document.createElement("canvas");
+      small.width = 80;
+      small.height = Math.max(8, Math.round((80 * height) / width));
+      const sctx = small.getContext("2d");
+      sctx.filter = "blur(1.5px)";
+      sctx.drawImage(canvas, 0, 0, small.width, small.height);
+      if (gl) sctx.drawImage(glCanvas, 0, 0, small.width, small.height);
+      document.documentElement.style.setProperty("--notebook-image", "url(" + small.toDataURL("image/png") + ")");
+      snapshotTaken = true;
+    } catch (err) {
+      snapshotTaken = true;
     }
-    let best = -1;
-    let bestD = 22 * 22;
-    for (let i = 0; i < count; i++) {
-      const dx = projected[i * 2] - pointer.x;
-      const dy = projected[i * 2 + 1] - pointer.y;
-      const d = dx * dx + dy * dy;
-      if (d < bestD) { bestD = d; best = i; }
-    }
-    if (best < 0) {
-      if (probe) probe.textContent = "";
-      return;
-    }
-    const px = projected[best * 2];
-    const py = projected[best * 2 + 1];
-    ctx.save();
-    ctx.strokeStyle = "rgba(255,255,255,0.45)";
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    ctx.moveTo(px + 0.5, 0);
-    ctx.lineTo(px + 0.5, height);
-    ctx.moveTo(0, py + 0.5);
-    ctx.lineTo(width, py + 0.5);
-    ctx.stroke();
-    ctx.strokeStyle = "#ff3b3c";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(px - 5, py - 5, 10, 10);
-    ctx.restore();
-    const p = rock[best];
-    if (probe) probe.textContent = "x " + p.x.toFixed(3) + "   z " + p.z.toFixed(3) + "   h " + p.h.toFixed(3);
   }
 
   function draw(now) {
     if (!built) return;
+    advanceTimeline(now);
+    mouse.strength += (mouse.target - mouse.strength) * 0.12;
+    mouse.x += (mouse.tx - mouse.x) * 0.2;
+    mouse.y += (mouse.ty - mouse.y) * 0.2;
     const blend = reduceMotion ? 0 : 0.5 + 0.5 * Math.sin((now - startTime) * 0.0009);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -315,28 +558,22 @@
     ctx.globalAlpha = blend;
     ctx.drawImage(waterB.canvas, 0, 0);
     ctx.globalAlpha = 1;
-    ctx.drawImage(stone.canvas, 0, 0);
+    if (!gl) ctx.drawImage(stone.canvas, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    if (!snapshotTaken) {
-      snapshotTaken = true;
-      try {
-        const small = document.createElement("canvas");
-        small.width = 80;
-        small.height = Math.max(8, Math.round((80 * height) / width));
-        const sctx = small.getContext("2d");
-        sctx.filter = "blur(1.5px)";
-        sctx.drawImage(canvas, 0, 0, small.width, small.height);
-        document.documentElement.style.setProperty("--notebook-image", "url(" + small.toDataURL("image/png") + ")");
-      } catch (err) {
-        snapshotTaken = true;
-      }
-    }
-    paintProbe();
+    if (gl) drawGL(now);
+    if (!snapshotTaken && fitMix >= 1 && scroll === 0) takeSnapshot();
+    updateReadout(now, false);
+  }
+
+  function busy() {
+    const now = performance.now();
+    return !!timeline || now - lastMove < 400 || Math.abs(mouse.tx - mouse.x) + Math.abs(mouse.ty - mouse.y) > 0.5 || Math.abs(mouse.target - mouse.strength) > 0.01 || now - scrollChanged < 400;
   }
 
   function loop(now) {
     if (!running) return;
-    if (now - lastFrame >= FRAME_MS) {
+    const interval = busy() ? 0 : 1000 / 30;
+    if (now - lastFrame >= interval) {
       lastFrame = now;
       draw(now);
     }
@@ -344,12 +581,16 @@
   }
 
   function start() {
-    if (running || reduceMotion || !visible || document.hidden) return;
+    if (running || !visible || document.hidden || !built) return;
+    if (reduceMotion && !timeline) return;
+    if (timeline && timeline.start >= 0 && pausedAt) timeline.start += performance.now() - pausedAt;
+    pausedAt = 0;
     running = true;
     frameId = requestAnimationFrame(loop);
   }
 
   function stop() {
+    if (running) pausedAt = performance.now();
     running = false;
     cancelAnimationFrame(frameId);
   }
@@ -364,19 +605,51 @@
     });
   }
 
-  canvas.addEventListener("pointermove", function (e) {
+  const pointerTarget = hero || canvas;
+  pointerTarget.addEventListener("pointermove", function (e) {
+    if (e.pointerType !== "mouse" || reduceMotion || !gl) return;
     const rect = canvas.getBoundingClientRect();
-    pointer = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    redrawOnce();
+    mouse.tx = e.clientX - rect.left;
+    mouse.ty = e.clientY - rect.top;
+    if (mouse.x < -999) {
+      mouse.x = mouse.tx;
+      mouse.y = mouse.ty;
+    }
+    mouse.target = 1;
+    lastMove = performance.now();
   });
-  canvas.addEventListener("pointerleave", function () {
-    pointer = null;
-    redrawOnce();
+  pointerTarget.addEventListener("pointerleave", function () {
+    mouse.target = 0;
+  });
+
+  function setScroll(progress) {
+    const next = Math.max(0, Math.min(1, progress || 0));
+    if (Math.abs(next - scroll) < 0.0005) return;
+    scroll = next;
+    scrollChanged = performance.now();
+    if (!running) redrawOnce();
+  }
+
+  if (noiseBtn) {
+    if (!gl) noiseBtn.hidden = true;
+    noiseBtn.addEventListener("click", scatter);
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "n" && e.key !== "N") return;
+    if (e.repeat || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return;
+    const active = document.activeElement;
+    if (active && active !== document.body && hero && !hero.contains(active)) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || (e.target && e.target.isContentEditable)) return;
+    if (document.querySelector("dialog[open]")) return;
+    if (!visible) return;
+    scatter();
   });
 
   if ("IntersectionObserver" in window) {
     new IntersectionObserver(function (entries) {
-      visible = entries[0].isIntersecting;
+      visible = entries[entries.length - 1].isIntersecting;
       if (visible) start(); else stop();
     }).observe(canvas);
   }
@@ -396,18 +669,47 @@
     }, 150);
   });
 
-  window.HeroScene = { points: count, seed: SEED };
+  window.HeroScene = { points: count, seed: SEED, scatter: scatter, setScroll: setScroll, webgl: !!gl };
+
+  let introPlayed = false;
+  function intro() {
+    if (introPlayed || !built) return;
+    introPlayed = true;
+    if (gl) {
+      play([
+        { from: 0, to: 0, dur: 420 },
+        { from: 0, to: 1, dur: 2800 }
+      ]);
+    } else {
+      updateReadout(performance.now(), true);
+    }
+  }
+
+  const gated = document.documentElement.classList.contains("is-loading");
+  let released = !gated;
+  function release() {
+    if (released) return;
+    released = true;
+    intro();
+  }
+  if (gated) {
+    document.addEventListener("intro:go", release);
+    setTimeout(release, 6000);
+  }
 
   if ("ResizeObserver" in window) {
     new ResizeObserver(function () {
       if (!built) {
         build();
+        if (released) intro();
         redrawOnce();
       }
     }).observe(canvas);
   }
 
   build();
+  updateReadout(performance.now(), true);
   draw(performance.now());
+  if (released) intro();
   start();
 })();

@@ -2,6 +2,8 @@
 
 Website portofolio statis. Isinya HTML, CSS, dan JavaScript biasa, jadi tidak perlu install apa pun dan tidak ada proses build.
 
+Animasi memakai GSAP, ScrollTrigger, dan Lenis dari CDN (dengan hash SRI). Kalau CDN tidak bisa diakses, websitenya tetap jalan tanpa animasi tambahan. Tekan N di bagian atas halaman untuk mengacak ulang batu titik datanya.
+
 ## Cara membuka
 
 Klik dua kali `index.html`, atau jalankan server lokal supaya font dan semua fitur jalan normal:
@@ -46,4 +48,5 @@ js/viz.js       generator grafik thumbnail
 js/hero.js      batu karang dari titik data di bagian atas
 js/map.js       peta titik Indonesia di bagian kontak
 js/main.js      render halaman, ganti bahasa, dialog, timeline, form
+js/motion.js    preloader, smooth scroll, animasi scroll, kursor, efek magnet
 ```
