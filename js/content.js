@@ -430,37 +430,38 @@ window.PORTFOLIO = {
       context: { en: "Kaggle competition + Model Deployment course · Feb to Apr 2026", id: "Kompetisi Kaggle + mata kuliah Model Deployment · Feb sampai Apr 2026" },
       title: { en: "Spaceship Titanic, From Kaggle to an API", id: "Spaceship Titanic, dari Kaggle sampai API" },
       lead: {
-        en: "A Spaceship Titanic classifier that scored 0.79869 accuracy on Kaggle's public leaderboard. For the Model Deployment course, the same task got a FastAPI /predict endpoint and a Streamlit form.",
-        id: "Classifier Spaceship Titanic dengan akurasi 0,79869 di public leaderboard Kaggle. Untuk mata kuliah Model Deployment, kasus yang sama lalu dipasang di endpoint FastAPI /predict lengkap dengan form Streamlit."
+        en: "A random forest that scored 0.79869 accuracy on Kaggle's public leaderboard. Its training labels split almost exactly 50/50 (4,378 vs 4,315), so always guessing one class scores about 50% there. For the Model Deployment course, the same task was extended with MLflow tracking, a FastAPI /predict endpoint and a Streamlit form.",
+        id: "Random forest yang meraih akurasi 0,79869 di public leaderboard Kaggle. Label data latihnya terbagi hampir pas 50/50 (4.378 lawan 4.315), jadi kalau selalu menebak satu kelas, akurasinya cuma sekitar 50%. Di mata kuliah Model Deployment, kasus yang sama dilengkapi tracking MLflow, endpoint FastAPI /predict, dan form Streamlit."
       },
       problem: {
-        en: "Kaggle's Spaceship Titanic asks which passengers were transported to another dimension. The first half was the competition itself, and the second half was serving a model so someone without a notebook could use it.",
-        id: "Spaceship Titanic dari Kaggle menanyakan penumpang mana yang terlempar ke dimensi lain. Bagian pertama adalah kompetisinya, dan bagian kedua menyajikan model supaya bisa dipakai orang yang tidak membuka notebook."
+        en: "Kaggle's Spaceship Titanic asks which passengers were transported to another dimension. The project had two halves: the competition itself, then serving the model so someone could use it without running the notebook.",
+        id: "Kompetisi Spaceship Titanic di Kaggle meminta peserta menebak penumpang mana yang terlempar ke dimensi lain. Proyek ini terbagi dua: ikut kompetisinya, lalu menyajikan model supaya bisa dipakai orang tanpa harus menjalankan notebook-nya."
       },
       approach: {
-        en: "The modelling work compared XGBoost, LightGBM and logistic regression, tuned with Optuna and cross-validation, and the predictions for all 4,277 test passengers went to Kaggle. For deployment, a trained model sits behind a FastAPI POST /predict route that takes the passenger fields as JSON and returns a true/false prediction, documented through Swagger. A Streamlit page collects the same fields and shows whether the passenger was transported.",
-        id: "Di tahap pemodelan, XGBoost, LightGBM, dan logistic regression dibandingkan lalu di-tuning pakai Optuna dan cross-validation, dan prediksi untuk 4.277 penumpang uji dikirim ke Kaggle. Untuk deployment, model yang sudah dilatih dipasang di route FastAPI POST /predict yang menerima data penumpang dalam bentuk JSON dan mengembalikan prediksi true/false, lengkap dengan dokumentasi Swagger. Halaman Streamlit mengumpulkan data yang sama dan menampilkan apakah penumpangnya terlempar atau tidak."
+        en: "Missing values were filled with the mode or median, Cabin was split into deck, number and side, and text columns were label-encoded. With a stratified 80/20 split, logistic regression reached 78.3% validation accuracy and an unrestricted 200-tree random forest 80.9%. That forest scored 99.9% on its own training rows, so the final model was set by hand: 200 trees, depth at most 10, at least 5 passengers to split a node and 2 per leaf. It was then retrained on all 8,693 passengers. Optuna tuned both model types over 40 trials each with 5-fold cross-validation (random forest 0.797, logistic regression 0.784). Seven runs were logged in MLflow, and three of them were registered as SpaceshipTitanicModel. The Kaggle submission used the hand-set forest, even though the notebook's own comparison picked the Optuna forest, and the hand-set forest was never logged in MLflow. For deployment, a trained model sits behind a FastAPI POST /predict route, documented in Swagger, that takes the passenger fields as JSON and returns true or false. A separate Streamlit page takes the same fields and shows the answer.",
+        id: "Nilai kosong diisi modus atau median, kolom Cabin dipecah jadi deck, nomor, dan sisi, lalu kolom teks di-label-encode. Dengan split 80/20 yang distratifikasi, logistic regression mencapai akurasi validasi 78,3%, sedangkan random forest 200 pohon tanpa batasan mencapai 80,9%. Random forest itu dapat 99,9% di data latihnya sendiri, jadi model finalnya diatur manual: 200 pohon, kedalaman maksimal 10, minimal 5 penumpang untuk memecah node, dan minimal 2 penumpang per daun. Model itu kemudian dilatih ulang pakai data semua 8.693 penumpang. Kedua jenis model juga di-tuning pakai Optuna, masing-masing 40 percobaan dengan 5-fold cross-validation (random forest 0,797, logistic regression 0,784). Tujuh run dicatat di MLflow, dan tiga di antaranya didaftarkan sebagai SpaceshipTitanicModel. Submission ke Kaggle memakai forest yang diatur manual tadi, padahal perbandingan di notebook sendiri memilih forest hasil Optuna, dan forest manual itu tidak pernah dicatat di MLflow. Untuk deployment, model yang sudah dilatih dipasang di balik route FastAPI POST /predict yang dilengkapi dokumentasi Swagger. Route ini menerima data penumpang dalam format JSON dan mengembalikan true atau false. Halaman Streamlit terpisah meminta data yang sama dan menampilkan hasilnya."
       },
       metrics: [
         { label: { en: "Kaggle public score (accuracy)", id: "Skor publik Kaggle (akurasi)" }, value: "0.79869", note: { en: "public leaderboard, 2 submissions", id: "public leaderboard, 2 submission" } },
+        { label: { en: "Validation accuracy, unrestricted random forest", id: "Akurasi validasi, random forest tanpa batasan" }, value: "80.9%", note: { en: "the submitted forest had no held-out score · logistic regression 78.3% · always guessing the majority class 50.4%", id: "forest yang disubmit tidak punya skor di data validasi · logistic regression 78,3% · selalu menebak kelas mayoritas 50,4%" } },
+        { label: { en: "Cross-validated accuracy, Optuna random forest", id: "Akurasi cross-validation, random forest hasil Optuna" }, value: "0.797", note: { en: "best of 40 trials, scored on the folds that picked it · hand-set forest 0.796 on the same folds (rerun) · logistic regression 0.784", id: "terbaik dari 40 percobaan, dinilai di fold yang juga dipakai untuk memilihnya · forest manual 0,796 di fold yang sama (run ulang) · logistic regression 0,784" } },
         { label: { en: "Test passengers predicted", id: "Penumpang uji yang diprediksi" }, value: "4,277", note: { en: "51.3% predicted as transported", id: "51,3% diprediksi terlempar" } },
-        { label: { en: "Serving", id: "Penyajian" }, value: "FastAPI + Streamlit" },
-        { label: { en: "Endpoint", id: "Endpoint" }, value: "POST /predict", note: { en: "JSON in, true/false out, Swagger docs", id: "masuk JSON, keluar true/false, ada dokumentasi Swagger" } },
-        { label: { en: "Candidate models", id: "Model kandidat" }, value: "3", note: { en: "XGBoost, LightGBM, logistic regression", id: "XGBoost, LightGBM, logistic regression" } }
+        { label: { en: "Experiment tracking", id: "Tracking eksperimen" }, value: "MLflow", note: { en: "7 runs logged, 3 registered as SpaceshipTitanicModel", id: "7 run dicatat, 3 didaftarkan sebagai SpaceshipTitanicModel" } },
+        { label: { en: "Endpoint", id: "Endpoint" }, value: "POST /predict", note: { en: "FastAPI with Swagger docs, plus a separate Streamlit form", id: "FastAPI dengan dokumentasi Swagger, plus form Streamlit terpisah" } }
       ],
       headline: 0,
-      stack: ["Python", "scikit-learn", "XGBoost", "LightGBM", "Optuna", "FastAPI", "Streamlit", "Kaggle"],
+      stack: ["Python", "pandas", "scikit-learn", "Optuna", "MLflow", "FastAPI", "Streamlit", "Kaggle"],
       links: [
         { label: { en: "Kaggle competition", id: "Kompetisi Kaggle" }, url: "https://www.kaggle.com/competitions/spaceship-titanic" }
       ],
-      caveat: { en: "The score is from Kaggle's public leaderboard. The API runs locally.", id: "Skornya dari public leaderboard Kaggle. API-nya jalan di lokal." },
+      caveat: { en: "The score is from Kaggle's public leaderboard, and the API runs locally. Rerunning the notebook's final model reproduces all 4,277 predictions in the saved submission.csv exactly. That rerun also exposed preprocessing flaws: every text column was label-encoded separately for training and test data, which gave 4,257 test rows CabinNum codes that do not match training, and test gaps were filled from the test set's own median and mode. Encoding both sets together changes 87 predictions. The effect on the score has not been measured yet. Which trained model the API loads is not documented here.", id: "Skornya dari public leaderboard Kaggle, dan API-nya jalan di lokal. Saat model final di notebook dijalankan ulang, semua 4.277 prediksi di submission.csv yang tersimpan keluar sama persis. Run ulang itu juga menemukan kekurangan di preprocessing: semua kolom teks di-label-encode terpisah untuk data latih dan data uji, sehingga 4.257 baris data uji dapat kode CabinNum yang tidak cocok dengan data latih, dan nilai kosong di data uji diisi pakai median dan modus data uji sendiri. Kalau kedua data di-encode bersamaan, 87 prediksi berubah. Efeknya ke skor belum diukur. Model mana yang dimuat API juga tidak tercatat di sini." },
       viz: {
         type: "flow",
-        caption: { en: "request path · Kaggle public score 0.79869", id: "alur request · skor publik Kaggle 0,79869" },
+        caption: { en: "request path · local FastAPI", id: "alur request · FastAPI lokal" },
         steps: [
-          { label: "Streamlit form", sub: "localhost:8501" },
-          { label: "POST /predict", sub: "FastAPI · :8000" },
-          { label: { en: "trained classifier", id: "classifier terlatih" }, sub: { en: "passenger fields as JSON", id: "data penumpang dalam JSON" } },
+          { label: "Swagger UI", sub: "127.0.0.1:8000/docs" },
+          { label: "POST /predict", sub: { en: "passenger fields as JSON", id: "data penumpang dalam JSON" } },
+          { label: { en: "trained classifier", id: "classifier terlatih" }, sub: { en: "returns true or false", id: "mengembalikan true atau false" } },
           { label: "{\"prediction\": true}", sub: { en: "transported", id: "terlempar" }, hot: true }
         ]
       }
@@ -795,8 +796,12 @@ window.PORTFOLIO = {
       project: "titanic",
       title: { en: "Spaceship Titanic on Kaggle: 0.79869", id: "Spaceship Titanic di Kaggle: 0,79869" },
       summary: {
-        en: "Predictions for 4,277 test passengers went in, and the public leaderboard scored them at 0.79869 accuracy.",
-        id: "Prediksi untuk 4.277 penumpang uji dikirim, dan public leaderboard memberi akurasi 0,79869."
+        en: "The hand-set random forest predicted all 4,277 test passengers and scored 0.79869 accuracy on the public leaderboard.",
+        id: "Random forest yang diatur manual memprediksi semua 4.277 penumpang uji, dan akurasinya di public leaderboard 0,79869."
+      },
+      more: {
+        en: "Logistic regression reached 78.3% on validation and an unrestricted forest 80.9%, but that forest scored 99.9% on its own training rows. Limiting depth and leaf size brought training accuracy down to 85.7%, and that version went into the submission. Its held-out accuracy was never measured in the notebook, and a rerun's 5-fold CV puts it at 79.6%.",
+        id: "Logistic regression mencapai 78,3% di data validasi dan random forest tanpa batasan 80,9%, tapi random forest itu dapat 99,9% di data latihnya sendiri. Setelah kedalaman dan ukuran daunnya dibatasi, akurasi latihnya turun ke 85,7%, dan versi inilah yang dipakai untuk submission. Akurasinya di data yang belum pernah dilihat tidak diukur di notebook, dan di run ulang, 5-fold CV-nya 79,6%."
       }
     },
     {
@@ -804,8 +809,8 @@ window.PORTFOLIO = {
       project: "titanic",
       title: { en: "Spaceship Titanic model served over FastAPI", id: "Model Spaceship Titanic disajikan lewat FastAPI" },
       summary: {
-        en: "A POST /predict endpoint with Swagger docs, plus a Streamlit form that sends passenger details and shows the prediction.",
-        id: "Endpoint POST /predict lengkap dengan dokumentasi Swagger, plus form Streamlit yang mengirim data penumpang dan menampilkan hasil prediksinya."
+        en: "A POST /predict endpoint with Swagger docs, plus a Streamlit form that takes the same passenger details and shows the prediction.",
+        id: "Endpoint POST /predict lengkap dengan dokumentasi Swagger, plus form Streamlit yang menerima data penumpang yang sama lalu menampilkan hasil prediksinya."
       }
     }
   ],
