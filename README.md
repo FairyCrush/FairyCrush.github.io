@@ -2,7 +2,7 @@
 
 Website portofolio statis. Isinya HTML, CSS, dan JavaScript biasa, jadi tidak perlu install apa pun dan tidak ada proses build.
 
-Animasi memakai GSAP, ScrollTrigger, dan Lenis dari CDN (dengan hash SRI). Kalau CDN tidak bisa diakses, websitenya tetap jalan tanpa animasi tambahan. Tekan N di bagian atas halaman untuk mengacak ulang batu titik datanya.
+Scroll halus memakai Lenis dari CDN (dengan hash SRI). Kalau CDN tidak bisa diakses, websitenya tetap jalan dengan scroll biasa. Font: Newsreader, Archivo, dan DM Mono dari Google Fonts.
 
 ## Cara membuka
 
@@ -21,12 +21,12 @@ Semua teks dan angka ada di `js/content.js`. File lain tidak perlu disentuh untu
 | Yang mau diubah | Lokasi di `content.js` |
 | --- | --- |
 | Nama, email, peran | `person` |
-| Foto profil | `person.avatar`, isi dengan path gambar, misalnya `"assets/foto.jpg"` |
 | Link GitHub, LinkedIn, Kaggle, CV | `person.links`, isi `url`. Tombol dengan `url` kosong otomatis disembunyikan |
-| Paragraf perkenalan | `about.en` dan `about.id` |
-| Kartu keahlian | `skills` |
-| Proyek di bagian Karya | `projects` |
-| Timeline di bagian Catatan | `notebook` |
+| Paragraf perkenalan | `about.lead` dan `about.body` |
+| Baris "Sekarang" | `now` |
+| Daftar keahlian | `skills` |
+| Proyek di bagian Karya | `projects`, yang `featured: true` tampil sebagai Gbr. 1 sampai 4 |
+| Log di bagian Catatan | `notebook` |
 | Teks tombol dan label | `ui.en` dan `ui.id` |
 
 Setiap teks punya versi `en` dan `id`. Kalau salah satunya diubah, ubah juga pasangannya.
@@ -47,6 +47,6 @@ js/content.js   data dan teks
 js/viz.js       generator grafik thumbnail
 js/hero.js      batu karang dari titik data di bagian atas
 js/map.js       peta titik Indonesia di bagian kontak
-js/main.js      render halaman, ganti bahasa, dialog, timeline, form
-js/motion.js    preloader, smooth scroll, animasi scroll, kursor, efek magnet
+js/main.js      render halaman, ganti bahasa, dialog, catatan, salin email
+js/motion.js    smooth scroll, reveal saat scroll, parallax hero
 ```

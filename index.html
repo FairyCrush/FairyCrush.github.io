@@ -5,171 +5,133 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bevlin Logen · Data Science</title>
 <meta name="description" content="Portfolio of Bevlin Logen, BINUS computer science student working on data science: model evaluation, NLP, forecasting, LLM fine-tuning and model deployment on AWS.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Ccircle cx=%2732%27 cy=%2732%27 r=%2732%27 fill=%27%233b3e43%27/%3E%3Ctext x=%2732%27 y=%2742%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-size=%2726%27 fill=%27%23fff%27%3EBL%3C/text%3E%3Ccircle cx=%2750%27 cy=%2714%27 r=%275%27 fill=%27%23d62728%27/%3E%3C/svg%3E">
-<meta name="theme-color" content="#3b3e43">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2714%27 fill=%27%2317181b%27/%3E%3Ctext x=%2730%27 y=%2744%27 text-anchor=%27middle%27 font-family=%27Georgia,serif%27 font-size=%2734%27 fill=%27%23e9eaeb%27%3EB%3C/text%3E%3Ccircle cx=%2747%27 cy=%2742%27 r=%273.6%27 fill=%27%23c2272a%27/%3E%3C/svg%3E">
+<meta name="theme-color" content="#17181b">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&family=Martian+Mono:wdth,wght@75..112.5,300..600&family=Mrs+Saint+Delafield&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..600;1,6..72,300..500&family=Archivo:wdth,wght@62..125,300..700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
-<script>try{if(!sessionStorage.getItem("bl-intro-seen")&&!matchMedia("(prefers-reduced-motion: reduce)").matches){document.documentElement.classList.add("is-loading");setTimeout(function(){document.documentElement.classList.remove("is-loading")},7000)}}catch(e){}</script>
 </head>
 <body>
 <a class="skip-link" href="#about" data-i18n="skip">Skip to content</a>
 
-<div class="loader" id="loader" aria-hidden="true">
-  <div class="loader-inner">
-    <p class="loader-count"><span id="loader-num">000</span></p>
-    <p class="loader-label mono" id="loader-label">fitting</p>
-    <div class="loader-bar"><span id="loader-bar"></span></div>
-  </div>
-</div>
-
-<nav class="topnav" id="topnav" aria-label="Main" data-i18n-aria="aria.main">
-  <a class="topnav-mark" href="#top" aria-label="BL, Bevlin Logen, back to top" data-magnetic>BL</a>
-  <ol class="topnav-links">
-    <li><a href="#about" data-target="about" data-i18n="nav.about">About</a></li>
-    <li><a href="#skills" data-target="skills" data-i18n="nav.skills">Skills</a></li>
-    <li><a href="#work" data-target="work" data-i18n="nav.work">Work</a></li>
-    <li><a href="#notebook" data-target="notebook" data-i18n="nav.notebook">Notebook</a></li>
-    <li><a href="#contact" data-target="contact" data-i18n="nav.contact">Contact</a></li>
-  </ol>
-  <div class="topnav-lang" role="group" aria-label="Language" data-i18n-aria="aria.language">
-    <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="true">EN</button>
-    <button type="button" data-lang="id" lang="id" aria-label="Bahasa Indonesia" aria-pressed="false">ID</button>
-  </div>
-</nav>
-
-<header class="hero" id="top">
-  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
-  <canvas class="hero-gl" id="hero-gl" aria-hidden="true"></canvas>
-  <div class="hero-mist" aria-hidden="true"></div>
-  <div class="wrap hero-copy">
-    <p class="hero-statement">
-      <span data-i18n="hero.lead">I teach models to tell</span>
-      <b data-i18n="hero.signal">signal</b>
-      <span data-i18n="hero.joiner">from</span>
-      <span class="nowrap"><span class="noise-word"><span class="noise-glyphs" id="noise-word" aria-hidden="true">noise</span><span class="sr-only" data-i18n="hero.noise">noise</span></span>.</span>
-    </p>
-    <div class="hero-status">
-      <a class="status-pill" href="#contact" data-magnetic><span class="status-dot" aria-hidden="true"></span><span data-i18n="hero.status">Open to internships</span></a>
-      <span class="status-clock mono">Jakarta <time id="clock">--:--</time> WIB</span>
-    </div>
-    <p class="hero-fit mono" id="hero-fit" data-state="fitting"><span class="fit-run" data-i18n="hero.fitting">fitting</span><span class="fit-done" data-i18n="hero.fitted">fitted</span><span class="fit-run"> · epoch <span id="hero-epoch">000</span>/120</span> · loss <span id="hero-loss">0.0000</span><span class="fit-done"> · <button class="fit-joke" type="button" data-project="automl" data-i18n="hero.suspicious">suspiciously perfect</button></span></p>
-  </div>
-  <div class="hero-band">
-    <div class="wrap hero-band-inner">
-      <div class="avatar" id="avatar" aria-hidden="true"></div>
-      <h1 class="hero-name">
-        <span class="hero-name-main" id="person-name">Bevlin Logen</span>
-        <span class="hero-name-sep" aria-hidden="true"></span>
-        <span class="hero-name-role" id="person-role"></span>
-      </h1>
-      <button class="hero-noise" id="hero-noise" type="button" aria-keyshortcuts="N" data-magnetic><span data-i18n="hero.addNoise">Add noise</span><kbd>N</kbd></button>
+<header class="masthead" id="masthead">
+  <div class="wrap masthead-inner">
+    <a class="brand" href="#top">Bevlin Logen</a>
+    <nav class="masthead-nav" aria-label="Main" data-i18n-aria="aria.main">
+      <ol>
+        <li><a href="#about" data-target="about" data-i18n="nav.about">About</a></li>
+        <li><a href="#expertise" data-target="expertise" data-i18n="nav.expertise">Expertise</a></li>
+        <li><a href="#work" data-target="work" data-i18n="nav.work">Work</a></li>
+        <li><a href="#notebook" data-target="notebook" data-i18n="nav.notebook">Notebook</a></li>
+        <li><a href="#contact" data-target="contact" data-i18n="nav.contact">Contact</a></li>
+      </ol>
+    </nav>
+    <div class="lang" role="group" aria-label="Language" data-i18n-aria="aria.language">
+      <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="true">EN</button>
+      <span class="lang-sep" aria-hidden="true">/</span>
+      <button type="button" data-lang="id" lang="id" aria-label="Bahasa Indonesia" aria-pressed="false">ID</button>
     </div>
   </div>
 </header>
 
+<section class="hero" id="top" aria-labelledby="hero-name">
+  <canvas class="hero-canvas" id="hero-canvas" aria-hidden="true"></canvas>
+  <canvas class="hero-gl" id="hero-gl" aria-hidden="true"></canvas>
+  <div class="hero-shade" aria-hidden="true"></div>
+  <div class="wrap hero-inner">
+    <p class="hero-eyebrow" data-i18n="hero.eyebrow">Data Science · BINUS University · Jakarta</p>
+    <h1 class="hero-name" id="hero-name">Bevlin Logen</h1>
+    <p class="hero-sub" data-i18n="hero.sub">I build machine learning systems and test whether their results hold up.</p>
+    <div class="hero-foot">
+      <a class="hero-status" href="#contact"><span class="dot" aria-hidden="true"></span><span data-i18n="hero.status">Seeking a data science internship</span></a>
+      <p class="hero-caption" id="hero-caption"></p>
+    </div>
+  </div>
+</section>
+
 <main>
-  <section class="intro" id="about" aria-labelledby="intro-title">
-    <div class="wrap intro-grid">
-      <div class="intro-side" aria-hidden="true"></div>
-      <div class="intro-body">
-        <h2 class="intro-title" id="intro-title"><b data-i18n="hello.strong">Hello</b> <span data-i18n="hello.light">there</span></h2>
-        <div class="intro-text" id="about-text"></div>
-        <div class="intro-foot">
-          <ul class="socials" id="socials"></ul>
-          <p class="signature" id="signature" aria-hidden="true">Bevlin Logen</p>
+  <section class="section about" id="about" aria-labelledby="about-label">
+    <div class="wrap grid">
+      <h2 class="label" id="about-label" data-i18n="about.label">About</h2>
+      <div class="about-body">
+        <p class="about-lead" id="about-lead" data-reveal></p>
+        <div class="about-text" id="about-text" data-reveal></div>
+        <p class="currently" data-reveal><span class="currently-label" data-i18n="about.currently">Currently</span> <span id="currently"></span></p>
+        <ul class="links" id="links" data-reveal></ul>
+      </div>
+      <aside class="figure-note" data-reveal>
+        <button class="figure-button" type="button" data-project="automl">
+          <span class="figure-value" id="figure-value">0.948</span>
+          <span class="figure-caption" data-i18n="figure.caption"></span>
+          <span class="text-link" data-i18n="figure.cta">Read the case</span>
+        </button>
+      </aside>
+    </div>
+  </section>
+
+  <section class="section expertise" id="expertise" aria-labelledby="expertise-label">
+    <div class="wrap grid">
+      <h2 class="label" id="expertise-label" data-i18n="expertise.label">Expertise</h2>
+      <div class="expertise-body">
+        <ol class="expertise-list" id="expertise-list"></ol>
+        <div class="expertise-meta">
+          <div class="meta-block" data-reveal>
+            <h3 class="label-sm" data-i18n="expertise.languages">Languages</h3>
+            <p class="lang-line" id="lang-line"></p>
+          </div>
+          <div class="meta-block" data-reveal>
+            <h3 class="label-sm" data-i18n="expertise.credential">Certification</h3>
+            <div id="credentials"></div>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="stat" aria-labelledby="stat-caption">
+  <section class="section work" id="work" aria-labelledby="work-label">
     <div class="wrap">
-      <button class="stat-button" type="button" data-project="automl">
-        <span class="stat-number" id="stat-number" aria-hidden="true">0.948</span>
-        <span class="stat-copy">
-          <span class="stat-caption" id="stat-caption" data-i18n="stat.caption">accuracy my old AutoML reported on pure noise. Since then every result here ships with a baseline.</span>
-          <span class="stat-cta mono" data-i18n="stat.cta">open the AutoML case</span>
-        </span>
-      </button>
-    </div>
-  </section>
-
-  <section class="skills" id="skills" aria-labelledby="skills-title">
-    <div class="wrap">
-      <h2 class="section-title" id="skills-title"><span class="reveal" data-i18n="nav.skills">Skills</span></h2>
-      <ul class="skill-list" id="skill-list"></ul>
-      <div class="toolbelt">
-        <div class="toolbelt-block">
-          <h3 class="toolbelt-title mono" data-i18n="skills.languages">Languages</h3>
-          <ul class="lang-list" id="lang-list"></ul>
-        </div>
-        <div class="toolbelt-block">
-          <h3 class="toolbelt-title mono" data-i18n="skills.credential">Certification</h3>
-          <div id="credentials"></div>
-        </div>
+      <div class="grid section-head">
+        <h2 class="label" id="work-label" data-i18n="work.label">Selected work</h2>
+        <p class="section-intro" data-i18n="work.intro">Each figure is drawn from the project's own results.</p>
       </div>
-      <p class="skills-link"><a href="#work" id="skills-link"><span data-i18n="skills.linkLead">Every tool above shows up in</span> <b data-i18n="skills.linkStrong">the work below</b></a></p>
-    </div>
-  </section>
-
-  <section class="work" id="work" aria-labelledby="work-title">
-    <div class="wrap">
-      <h2 class="section-title" id="work-title"><span class="reveal" data-i18n="nav.work">Work</span></h2>
-      <p class="section-sub mono" data-i18n="work.sub">Each thumbnail is drawn from the project's own numbers.</p>
-      <ul class="work-featured" id="work-featured"></ul>
-      <h3 class="work-more mono" data-i18n="work.more">More work</h3>
+      <ol class="plates" id="plates"></ol>
+      <div class="grid section-head more-head">
+        <h3 class="label" data-i18n="work.more">Further work</h3>
+      </div>
     </div>
     <div class="marquee" id="work-marquee">
       <div class="marquee-row" data-dir="right"><ul class="marquee-track"></ul></div>
       <div class="marquee-row" data-dir="left"><ul class="marquee-track"></ul></div>
     </div>
-    <p class="wrap marquee-hint mono" data-i18n="work.hint">Hover a row to pause it, click a tile to open the project.</p>
   </section>
 
-  <section class="notebook" id="notebook" aria-labelledby="notebook-title">
-    <div class="notebook-backdrop" aria-hidden="true"></div>
-    <div class="notebook-head">
-      <h2 class="section-title" id="notebook-title"><span class="reveal" data-i18n="nav.notebook">Notebook</span></h2>
-      <div class="calendar" id="calendar">
-        <div class="calendar-months" id="calendar-months"></div>
-        <div class="calendar-years" id="calendar-years" role="group" aria-label="Year" data-i18n-aria="aria.year"></div>
+  <section class="section notebook" id="notebook" aria-labelledby="notebook-label">
+    <div class="wrap grid">
+      <h2 class="label" id="notebook-label" data-i18n="notebook.label">Notebook</h2>
+      <ol class="log" id="log"></ol>
+    </div>
+  </section>
+
+  <section class="section contact" id="contact" aria-labelledby="contact-label">
+    <div class="wrap grid">
+      <h2 class="label" id="contact-label" data-i18n="contact.label">Contact</h2>
+      <div class="contact-body">
+        <p class="contact-lead" data-i18n="contact.lead">For internships, collaborations or questions about any project here.</p>
+        <p class="contact-email"><a id="contact-email" href="#"></a></p>
+        <p class="contact-actions"><button class="text-button" id="copy-email" type="button" data-i18n="contact.copy">Copy address</button><span class="copy-status" id="copy-status" role="status" aria-live="polite"></span></p>
+        <ul class="links links-night" id="contact-links"></ul>
       </div>
-    </div>
-    <div class="wrap timeline-wrap">
-      <div class="timeline-progress" aria-hidden="true"></div>
-      <ol class="timeline" id="timeline"></ol>
-    </div>
-  </section>
-
-  <section class="contact" id="contact" aria-labelledby="contact-title">
-    <div class="wrap">
-      <h2 class="section-title" id="contact-title"><span class="reveal" data-i18n="nav.contact">Contact</span></h2>
-      <div class="contact-grid">
-        <form class="letter" id="letter" novalidate>
-          <p class="letter-to"><span class="mono" data-i18n="contact.to">to</span><a id="contact-email" href="#"></a></p>
-          <label class="sr-only" for="letter-from" data-i18n="contact.fromLabel">Your name</label>
-          <input class="letter-from" id="letter-from" name="from" type="text" autocomplete="name" data-i18n-placeholder="contact.fromPlaceholder" placeholder="Your name">
-          <label class="sr-only" for="letter-body" data-i18n="contact.bodyLabel">Message</label>
-          <textarea class="letter-body" id="letter-body" name="body" rows="5" aria-describedby="letter-hint"></textarea>
-          <div class="letter-foot">
-            <p class="letter-hint mono" id="letter-hint" aria-live="polite" data-i18n="contact.hint">Send opens your email app with this message.</p>
-            <button class="letter-send" type="submit" data-i18n="contact.send" data-magnetic>send</button>
-          </div>
-        </form>
-        <div class="map">
-          <svg class="map-svg" id="map-svg" role="img" aria-labelledby="map-label"></svg>
-          <p class="map-label" id="map-label"><span class="mono" data-i18n="contact.based">Based in</span><b>Jakarta</b></p>
-        </div>
+      <div class="map">
+        <svg class="map-svg" id="map-svg" role="img" aria-labelledby="map-label"></svg>
+        <p class="map-label" id="map-label"><span data-i18n="contact.based">Based in Jakarta</span> · <time id="clock">--:--</time> WIB</p>
       </div>
     </div>
   </section>
 </main>
 
 <footer class="footer">
-  <p class="footer-mark" aria-hidden="true"><span>Bevlin Logen</span></p>
-  <div class="wrap footer-inner mono">
+  <div class="wrap footer-inner">
     <span id="footer-copy"></span>
     <a href="#top" data-i18n="footer.top">Back to top</a>
   </div>
@@ -179,7 +141,7 @@
   <div class="dialog-inner">
     <div class="dialog-viz" id="dialog-viz"></div>
     <div class="dialog-body">
-      <p class="dialog-context mono" id="dialog-context"></p>
+      <p class="dialog-context" id="dialog-context"></p>
       <h3 class="dialog-title" id="dialog-title" tabindex="-1"></h3>
       <p class="dialog-lead" id="dialog-lead"></p>
       <dl class="dialog-sections">
@@ -210,8 +172,6 @@
 <script src="js/hero.js"></script>
 <script src="js/map.js"></script>
 <script src="js/main.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js" integrity="sha384-B2WBjDzEjJpYvhmi2UyEn7rektqkf5suS6sNoyyrf0EBAwBHdkiXxIlU0V5Ru2ed" crossorigin="anonymous"></script>
 <script src="js/motion.js"></script>
 </body>

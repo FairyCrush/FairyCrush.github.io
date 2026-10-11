@@ -1,13 +1,13 @@
 (function () {
-  const INK = "#2b2d31";
-  const GREY = "#8f9297";
-  const LIGHT = "#d3d4d6";
-  const FAINT = "#e4e5e6";
-  const BG = "#f1f1f0";
-  const ACCENT = "#d62728";
+  const INK = "#1c1d20";
+  const GREY = "#7a7e84";
+  const LIGHT = "#d0d3d5";
+  const FAINT = "#dfe2e3";
+  const BG = "#e9ebeb";
+  const ACCENT = "#c2272a";
   const SIZE = 200;
   const PAD = 18;
-  const MONO = "Martian Mono, monospace";
+  const MONO = "DM Mono, monospace";
   const SANS = "Archivo, sans-serif";
   let patternSeq = 0;
 

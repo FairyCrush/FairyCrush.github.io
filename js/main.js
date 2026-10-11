@@ -8,19 +8,15 @@
     id: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
   };
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const canTilt = !reduceMotion && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-  const NOISE_GLYPHS = "01#%&?/<>\|=+*~^";
-  let noiseTimer = 0;
-  let heroState = "fitting";
+  const html = document.documentElement;
 
   const state = {
     lang: pickLanguage(),
-    year: null,
     openIndex: -1,
     lastFocus: null,
-    greeting: "",
     settled: false,
-    mailTimer: 0
+    workWidth: 0,
+    copyTimer: 0
   };
 
   function pickLanguage() {
@@ -98,28 +94,41 @@
     return node;
   }
 
+  function revealAttr() {
+    return state.settled ? null : true;
+  }
+
   function formatDate(iso) {
     const parts = iso.split("-").map(Number);
     const month = MONTHS[state.lang][parts[1] - 1];
     return parts[2] ? parts[2] + " " + month + " " + parts[0] : month + " " + parts[0];
   }
 
-  const ICONS = {
-    mail: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3.5 6.5 12 13l8.5-6.5"/></svg>',
-    github: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7 3 12l5 5"/><path d="m16 7 5 5-5 5"/><path d="m13.5 4-3 16"/></svg>',
-    linkedin: '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="9" width="3.4" height="11"/><circle cx="5.7" cy="5.4" r="1.9"/><path d="M10 9h3.2v1.6c.6-1 1.8-1.9 3.6-1.9 3 0 3.9 1.9 3.9 4.8V20h-3.4v-5.8c0-1.4-.3-2.6-1.8-2.6s-2.1 1.1-2.1 2.6V20H10z"/></svg>',
-    kaggle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v18"/><path d="M17 4 9.5 12 17.5 20"/></svg>',
-    cv: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 16h6"/></svg>',
-    instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="0.6" fill="currentColor"/></svg>'
-  };
+  function isExternal(url) {
+    return url.indexOf("http") === 0 || /\.pdf$/i.test(url);
+  }
+
+  function linkList(target, skipMail) {
+    target.innerHTML = "";
+    DATA.person.links.forEach(function (link) {
+      if (!link.url) return;
+      if (skipMail && link.icon === "mail") return;
+      const external = isExternal(link.url);
+      target.appendChild(el("li", null, [
+        el("a", {
+          class: external ? "is-external" : null,
+          href: link.url,
+          target: external ? "_blank" : null,
+          rel: external ? "noopener noreferrer" : null
+        }, [t(link.label)])
+      ]));
+    });
+  }
 
   function applyStaticText() {
-    document.documentElement.lang = state.lang;
+    html.lang = state.lang;
     document.querySelectorAll("[data-i18n]").forEach(function (node) {
       node.textContent = ui(node.getAttribute("data-i18n"));
-    });
-    document.querySelectorAll("[data-i18n-placeholder]").forEach(function (node) {
-      node.setAttribute("placeholder", ui(node.getAttribute("data-i18n-placeholder")));
     });
     document.querySelectorAll("[data-i18n-aria]").forEach(function (node) {
       node.setAttribute("aria-label", ui(node.getAttribute("data-i18n-aria")));
@@ -127,145 +136,120 @@
     document.querySelectorAll("button[data-lang]").forEach(function (btn) {
       btn.setAttribute("aria-pressed", String(btn.getAttribute("data-lang") === state.lang));
     });
-    settleNoiseWord();
     document.title = DATA.person.name + " · " + t(DATA.person.titleTag);
   }
 
   function renderHero() {
-    document.getElementById("person-name").textContent = DATA.person.name;
-    document.getElementById("person-role").textContent = t(DATA.person.role);
-    const avatar = document.getElementById("avatar");
-    if (avatar && !avatar.dataset.ready) {
-      avatar.dataset.ready = "1";
-      if (DATA.person.avatar) {
-        avatar.appendChild(el("img", { src: DATA.person.avatar, alt: "" }));
-      } else {
-        avatar.style.backgroundImage = "radial-gradient(rgba(255,255,255,0.16) 1px, transparent 1.2px)";
-        avatar.style.backgroundSize = "7px 7px";
-        avatar.appendChild(el("span", { class: "avatar-mark", text: DATA.person.initials }));
-      }
+    const caption = document.getElementById("hero-caption");
+    const points = window.HeroScene ? window.HeroScene.points : 0;
+    if (caption) {
+      caption.textContent = points ? ui("hero.caption", { n: numberText(points.toLocaleString("en-US")) }) : "";
     }
   }
 
   function renderAbout() {
+    document.getElementById("about-lead").textContent = t(DATA.about.lead);
     const wrap = document.getElementById("about-text");
     wrap.innerHTML = "";
-    (DATA.about[state.lang] || DATA.about.en).forEach(function (p) {
-      wrap.appendChild(el("p", { html: p }));
+    (DATA.about.body[state.lang] || DATA.about.body.en).forEach(function (p) {
+      wrap.appendChild(el("p", { text: p }));
     });
-    const socials = document.getElementById("socials");
-    socials.innerHTML = "";
-    DATA.person.links.forEach(function (link) {
-      if (!link.url) return;
-      const external = link.url.indexOf("http") === 0 || /\.pdf$/i.test(link.url);
-      socials.appendChild(el("li", null, [
-        el("a", {
-          href: link.url,
-          target: external ? "_blank" : null,
-          rel: external ? "noopener noreferrer" : null
-        }, [
-          el("span", { html: ICONS[link.icon] || "", "aria-hidden": "true", style: "display:contents" }),
-          el("span", { text: t(link.label) })
-        ])
-      ]));
-    });
-    if (DATA.now) {
-      wrap.appendChild(el("p", { class: "now-line" }, [
-        el("span", { class: "now-label mono" }, [el("span", { class: "status-dot", "aria-hidden": "true" }), ui("about.now")]),
-        el("span", { text: t(DATA.now) })
-      ]));
-    }
+    document.getElementById("currently").textContent = t(DATA.now);
+    linkList(document.getElementById("links"), false);
+    document.getElementById("figure-value").textContent = numberText(DATA.figure.value);
   }
 
-  function renderStat() {
-    const number = document.getElementById("stat-number");
-    if (number && !number.dataset.counting) number.textContent = numberText("0.948");
-  }
-
-  function renderSkills() {
-    const list = document.getElementById("skill-list");
+  function renderExpertise() {
+    const list = document.getElementById("expertise-list");
     list.innerHTML = "";
     DATA.skills.forEach(function (skill, i) {
-      list.appendChild(el("li", { class: "skill" }, [
-        el("button", { class: "skill-card", type: "button", "data-project": skill.project || null, "data-cursor": "open" }, [
-          el("span", { class: "skill-index mono", text: String(i + 1).padStart(2, "0") }),
-          el("span", { class: "skill-title", text: t(skill.title) }),
-          el("span", { class: "skill-proof", text: t(skill.proof) }),
-          el("span", { class: "skill-tools mono", text: skill.tools }),
-          el("span", { class: "skill-cta mono", text: ui("skills.evidence") })
+      list.appendChild(el("li", { class: "expertise-item", "data-reveal": revealAttr() }, [
+        el("button", { class: "expertise-row", type: "button", "data-project": skill.project || null }, [
+          el("span", { class: "expertise-index", text: String(i + 1).padStart(2, "0") }),
+          el("span", { class: "expertise-name", text: t(skill.title) }),
+          el("span", { class: "expertise-tools", text: skill.tools }),
+          el("span", { class: "expertise-proof", text: t(skill.proof) })
         ])
       ]));
     });
 
-    const langs = document.getElementById("lang-list");
-    langs.innerHTML = "";
-    (DATA.languages || []).forEach(function (name) {
-      langs.appendChild(el("li", { class: "lang-chip mono", text: name }));
-    });
+    document.getElementById("lang-line").textContent = (DATA.languages || []).join("\u00a0· ");
 
     const creds = document.getElementById("credentials");
     creds.innerHTML = "";
     (DATA.credentials || []).forEach(function (c) {
-      const card = el("article", { class: "credential" }, [
-        el("img", { class: "credential-badge", src: c.image, alt: t(c.alt), width: "96", height: "96", loading: "lazy", decoding: "async" }),
+      creds.appendChild(el("article", { class: "credential" }, [
+        el("img", { class: "credential-badge", src: c.image, alt: t(c.alt), width: "64", height: "64", loading: "lazy", decoding: "async" }),
         el("div", { class: "credential-body" }, [
-          el("p", { class: "credential-issuer mono", text: c.issuer + " · " + formatDate(c.date) }),
-          el("h4", { class: "credential-title", text: c.title }),
-          el("p", { class: "credential-level", text: c.level }),
+          el("h4", { class: "credential-title", text: c.issuer + " " + c.title }),
+          el("p", { class: "credential-meta", text: c.level + " · " + formatDate(c.date) }),
           c.note ? el("p", { class: "credential-note", text: t(c.note) }) : null,
-          el("ul", { class: "credential-skills" }, (c.skills || []).map(function (s) {
-            return el("li", { class: "mono", text: t(s) });
-          })),
-          c.url ? el("a", { class: "credential-link", href: c.url, target: "_blank", rel: "noopener noreferrer", text: ui("credential.verify") }) : null
+          c.url ? el("a", { class: "text-link is-external", href: c.url, target: "_blank", rel: "noopener noreferrer", text: ui("credential.verify") }) : null
         ])
+      ]));
+    });
+  }
+
+  function plateMetrics(project) {
+    const list = project.metrics || [];
+    const first = list[project.headline || 0];
+    const picked = first ? [first] : [];
+    for (let i = 0; i < list.length && picked.length < 2; i++) {
+      if (list[i] !== first) picked.push(list[i]);
+    }
+    return picked;
+  }
+
+  function buildPlate(project, index, number) {
+    const figure = el("button", {
+      class: "plate-figure",
+      type: "button",
+      "data-index": String(index),
+      "aria-label": t(project.title)
+    }, [el("span", { class: "plate-viz", html: drawViz(project), "aria-hidden": "true" })]);
+    const read = el("button", { class: "text-link", type: "button", "data-index": String(index), text: ui("work.read") });
+    [figure, read].forEach(function (b) {
+      b.addEventListener("click", function () { openProject(index, b, figure.querySelector(".plate-viz")); });
+    });
+    const metrics = plateMetrics(project).map(function (m) {
+      return el("div", { class: "plate-metric" }, [
+        el("dt", { text: t(m.label) }),
+        el("dd", { text: numberText(m.value) })
       ]);
-      creds.appendChild(card);
     });
-  }
-
-  function headlineMetric(project) {
-    const m = project.metrics && project.metrics[project.headline || 0];
-    return m || null;
-  }
-
-  function attachTilt(button, strength) {
-    button.addEventListener("pointermove", function (e) {
-      const rect = button.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      button.style.setProperty("--mx", px + "px");
-      button.style.setProperty("--my", py + "px");
-      if (canTilt) {
-        button.style.setProperty("--ry", ((px / rect.width - 0.5) * strength).toFixed(2) + "deg");
-        button.style.setProperty("--rx", ((0.5 - py / rect.height) * strength).toFixed(2) + "deg");
-      }
-    });
-    button.addEventListener("pointerleave", function () {
-      button.style.setProperty("--rx", "0deg");
-      button.style.setProperty("--ry", "0deg");
-    });
+    return el("li", { class: "plate", "data-reveal": revealAttr() }, [
+      el("figure", { class: "plate-frame" }, [
+        figure,
+        el("figcaption", { class: "plate-caption" }, [
+          el("span", { class: "plate-num", text: ui("work.figure") + " " + number }),
+          el("span", { text: (project.stack || []).slice(0, 4).join(" · ") })
+        ])
+      ]),
+      el("div", { class: "plate-text" }, [
+        el("p", { class: "plate-context", text: t(project.context) }),
+        el("h3", { class: "plate-title", text: t(project.title) }),
+        el("p", { class: "plate-lead", text: t(project.lead) }),
+        metrics.length ? el("dl", { class: "plate-metrics" }, metrics) : null,
+        read
+      ])
+    ]);
   }
 
   function buildTile(project, index, isClone) {
-    const metric = headlineMetric(project);
+    const metric = (project.metrics || [])[project.headline || 0];
     const button = el("button", {
       type: "button",
       class: "tile-button",
       tabindex: isClone ? "-1" : null,
-      "data-index": String(index),
-      "data-cursor": "open"
+      "data-index": String(index)
     }, [
       el("span", { class: "tile-viz", html: drawViz(project), "aria-hidden": "true" }),
       el("span", { class: "tile-meta" }, [
         el("span", { class: "tile-title", text: t(project.title) }),
-        metric ? el("span", { class: "tile-metric" }, [
-          el("b", { text: numberText(metric.value) }),
-          el("span", { class: "mono", text: t(metric.label) })
-        ]) : null
+        metric ? el("span", { class: "tile-metric", text: numberText(metric.value) + " · " + t(metric.label) }) : null
       ])
     ]);
-    button.addEventListener("click", function () { openProject(index, button); });
-    attachTilt(button, 12);
+    button.addEventListener("click", function () { openProject(index, button, button.querySelector(".tile-viz")); });
     return el("li", {
       class: "tile" + (isClone ? " is-clone" : ""),
       "aria-hidden": isClone ? "true" : null,
@@ -273,37 +257,15 @@
     }, [button]);
   }
 
-  function buildFeature(project, index, wide) {
-    const metric = headlineMetric(project);
-    const button = el("button", {
-      type: "button",
-      class: "feature-card",
-      "data-index": String(index),
-      "data-cursor": "open"
-    }, [
-      el("span", { class: "feature-viz", html: drawViz(project), "aria-hidden": "true" }),
-      el("span", { class: "feature-body" }, [
-        el("span", { class: "feature-context mono", text: t(project.context) }),
-        el("span", { class: "feature-title", text: t(project.title) }),
-        el("span", { class: "feature-lead", text: t(project.lead) }),
-        metric ? el("span", { class: "feature-metric" }, [
-          el("b", { text: numberText(metric.value) }),
-          el("span", { class: "mono", text: t(metric.label) })
-        ]) : null
-      ])
-    ]);
-    button.addEventListener("click", function () { openProject(index, button); });
-    attachTilt(button, 6);
-    return el("li", { class: "feature" + (wide ? " feature-wide" : "") }, [button]);
-  }
-
   function renderWork() {
-    const featuredList = document.getElementById("work-featured");
+    const plates = document.getElementById("plates");
     const rest = [];
-    if (featuredList) featuredList.innerHTML = "";
+    let number = 0;
+    plates.innerHTML = "";
     DATA.projects.forEach(function (project, index) {
-      if (project.featured && featuredList) {
-        featuredList.appendChild(buildFeature(project, index, featuredList.children.length === 0));
+      if (project.featured) {
+        number += 1;
+        plates.appendChild(buildPlate(project, index, number));
       } else {
         rest.push({ project: project, index: index });
       }
@@ -320,7 +282,7 @@
         items.forEach(function (it) { track.appendChild(buildTile(it.project, it.index, true)); });
       }
       track.style.setProperty("--copies", String(copies));
-      track.style.setProperty("--marquee-duration", Math.max(18, Math.round(setWidth / 38)) + "s");
+      track.style.setProperty("--marquee-duration", Math.max(40, Math.round(setWidth / 22)) + "s");
     });
     state.workWidth = window.innerWidth;
   }
@@ -331,7 +293,10 @@
     window.addEventListener("resize", function () {
       clearTimeout(resizeTimer);
       resizeTimer = setTimeout(function () {
-        if (Math.abs(window.innerWidth - (state.workWidth || 0)) > 40) renderWork();
+        if (Math.abs(window.innerWidth - state.workWidth) > 40) {
+          renderWork();
+          document.dispatchEvent(new CustomEvent("portfolio:rendered", { detail: { lang: state.lang } }));
+        }
       }, 300);
     });
     if (!marquee || !("IntersectionObserver" in window)) return;
@@ -347,19 +312,18 @@
     return -1;
   }
 
-  function openProject(index, trigger) {
+  function openProject(index, trigger, source) {
     const dialog = document.getElementById("project-dialog");
     if (!dialog || typeof dialog.showModal !== "function" || index < 0) return;
     if (trigger) state.lastFocus = trigger;
     state.openIndex = index;
     const target = document.getElementById("dialog-viz");
-    const source = trigger && !dialog.open ? trigger.querySelector(".tile-viz, .feature-viz") : null;
     function show() {
       fillDialog();
       if (!dialog.open) dialog.showModal();
       document.getElementById("dialog-title").focus({ preventScroll: true });
     }
-    if (source && document.startViewTransition && !reduceMotion) {
+    if (source && !dialog.open && document.startViewTransition && !reduceMotion) {
       target.style.viewTransitionName = "";
       source.style.viewTransitionName = "project-viz";
       const transition = document.startViewTransition(function () {
@@ -367,7 +331,8 @@
         target.style.viewTransitionName = "project-viz";
         show();
       });
-      transition.finished.finally(function () { target.style.viewTransitionName = ""; });
+      transition.ready.catch(function () { target.style.viewTransitionName = ""; });
+      transition.finished.then(function () { target.style.viewTransitionName = ""; }, function () { target.style.viewTransitionName = ""; });
       return;
     }
     show();
@@ -396,7 +361,7 @@
     const links = document.getElementById("dialog-links");
     links.innerHTML = "";
     (project.links || []).forEach(function (l) {
-      links.appendChild(el("li", null, [el("a", { href: l.url, target: "_blank", rel: "noopener noreferrer", text: t(l.label) })]));
+      links.appendChild(el("li", null, [el("a", { class: "is-external", href: l.url, target: "_blank", rel: "noopener noreferrer", text: t(l.label) })]));
     });
     links.hidden = !(project.links && project.links.length);
     document.getElementById("dialog-caveat").textContent = t(project.caveat);
@@ -419,7 +384,6 @@
       if (e.target === dialog) dialog.close();
     });
     dialog.addEventListener("keydown", function (e) {
-      if (e.target && /^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;
       if (e.key === "ArrowRight") step(1);
       if (e.key === "ArrowLeft") step(-1);
     });
@@ -434,108 +398,34 @@
       const index = projectIndex(trigger.getAttribute("data-project"));
       if (index < 0) return;
       e.preventDefault();
-      openProject(index, trigger);
+      openProject(index, trigger, null);
     });
   }
 
-  function notebookYears() {
-    const years = {};
-    DATA.notebook.forEach(function (n) { years[n.date.slice(0, 4)] = true; });
-    return Object.keys(years).sort().reverse();
-  }
-
-  function entryVisual(entry, projectById) {
-    if (entry.credential != null && DATA.credentials && DATA.credentials[entry.credential]) {
-      const c = DATA.credentials[entry.credential];
-      return el("div", { class: "entry-visual entry-visual-badge" }, [
-        el("img", { src: c.image, alt: t(c.alt), loading: "lazy", decoding: "async" })
-      ]);
-    }
-    return el("div", { class: "entry-visual", html: drawViz(projectById[entry.project]), "aria-hidden": "true" });
-  }
-
-  function renderNotebook(focusYear) {
-    const years = notebookYears();
-    if (!state.year || years.indexOf(state.year) < 0) state.year = years[0] || String(new Date().getFullYear());
-    const entries = DATA.notebook
-      .filter(function (n) { return n.date.slice(0, 4) === state.year; })
-      .sort(function (a, b) { return a.date < b.date ? 1 : -1; });
-
-    const months = document.getElementById("calendar-months");
-    months.innerHTML = "";
-    const used = {};
-    entries.forEach(function (n) { used[Number(n.date.slice(5, 7))] = true; });
-    MONTHS[state.lang].forEach(function (name, i) {
-      const has = !!used[i + 1];
-      const b = el("button", {
-        type: "button",
-        class: has ? "has-entries" : "",
-        disabled: has ? null : true,
-        "aria-label": has ? ui("notebook.jump", { month: name, year: state.year }) : null,
-        text: name
-      });
-      if (has) {
-        b.addEventListener("click", function () {
-          const target = document.querySelector('.entry[data-month="' + (i + 1) + '"]');
-          if (!target) return;
-          if (window.__lenis) window.__lenis.scrollTo(target, { offset: -window.innerHeight / 3 });
-          else target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-        });
-      }
-      months.appendChild(b);
-    });
-    requestAnimationFrame(function () { months.scrollLeft = months.scrollWidth; });
-
-    const calendar = document.getElementById("calendar");
-    let current = calendar.querySelector(".calendar-year-current");
-    if (!current) {
-      current = el("div", { class: "calendar-year-current" });
-      calendar.insertBefore(current, document.getElementById("calendar-years"));
-    }
-    current.textContent = state.year;
-
-    const yearWrap = document.getElementById("calendar-years");
-    yearWrap.innerHTML = "";
-    yearWrap.hidden = years.length < 2;
-    years.filter(function (y) { return y !== state.year; }).forEach(function (y) {
-      const b = el("button", { type: "button", "aria-pressed": "false", "data-year": y, text: y });
-      b.addEventListener("click", function () {
-        state.year = y;
-        renderNotebook(true);
-      });
-      yearWrap.appendChild(b);
-    });
-    if (focusYear && yearWrap.firstElementChild) yearWrap.firstElementChild.focus({ preventScroll: true });
-
-    const list = document.getElementById("timeline");
+  function renderNotebook() {
+    const list = document.getElementById("log");
     list.innerHTML = "";
-    const projectById = {};
-    DATA.projects.forEach(function (p) { projectById[p.id] = p; });
-    const shown = {};
+    const entries = DATA.notebook.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
     entries.forEach(function (entry, i) {
-      const visualKey = entry.project || ("credential-" + entry.credential);
-      const showVisual = !shown[visualKey];
-      shown[visualKey] = true;
-      const moreId = "entry-more-" + i;
+      const moreId = "log-more-" + i;
       const toggle = entry.more ? el("button", {
         type: "button",
-        class: "entry-toggle",
+        class: "log-toggle",
         "aria-expanded": "false",
         "aria-controls": moreId,
         text: ui("notebook.more")
       }) : null;
-      const more = entry.more ? el("div", { class: "entry-more", id: moreId, inert: true }, [el("div", null, [el("p", { text: t(entry.more) })])]) : null;
-      const li = el("li", { class: "entry" + (state.settled ? " is-in" : ""), "data-month": String(Number(entry.date.slice(5, 7))) }, [
-        el("span", { class: "entry-day" + (entry.date.length < 10 ? " is-month" : ""), "aria-hidden": "true", text: entry.date.length < 10 ? MONTHS[state.lang][Number(entry.date.slice(5, 7)) - 1] : String(Number(entry.date.slice(8, 10))) }),
-        el("article", { class: "entry-card" + (toggle ? "" : " no-toggle") + (showVisual ? "" : " no-visual") }, [
-          showVisual ? entryVisual(entry, projectById) : null,
-          el("div", { class: "entry-text" }, [
-            el("p", { class: "entry-date mono", text: formatDate(entry.date) }),
-            el("h3", null, [entry.project ? el("button", { class: "entry-link", type: "button", "data-project": entry.project, text: t(entry.title) }) : t(entry.title)]),
-            el("p", { text: t(entry.summary) }),
-            more,
-            toggle
-          ])
+      const more = entry.more ? el("div", { class: "log-more", id: moreId, inert: true }, [el("div", null, [el("p", { text: t(entry.more) })])]) : null;
+      const title = entry.project
+        ? el("button", { class: "log-link", type: "button", "data-project": entry.project, text: t(entry.title) })
+        : t(entry.title);
+      const li = el("li", { class: "log-row", "data-reveal": revealAttr() }, [
+        el("time", { class: "log-date", datetime: entry.date, text: formatDate(entry.date) }),
+        el("div", { class: "log-body" }, [
+          el("h3", { class: "log-title" }, [title]),
+          el("p", { class: "log-summary", text: t(entry.summary) }),
+          more,
+          toggle
         ])
       ]);
       if (toggle) {
@@ -548,27 +438,7 @@
       }
       list.appendChild(li);
     });
-    if (!entries.length) list.appendChild(el("li", { class: "timeline-empty", text: ui("notebook.empty") }));
-    observeEntries();
-  }
-
-  let entryObserver = null;
-  function observeEntries() {
-    const items = document.querySelectorAll(".entry:not(.is-in)");
-    if (entryObserver) entryObserver.disconnect();
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      items.forEach(function (n) { n.classList.add("is-in"); });
-      return;
-    }
-    entryObserver = new IntersectionObserver(function (records) {
-      records.forEach(function (r) {
-        if (r.isIntersecting) {
-          r.target.classList.add("is-in");
-          entryObserver.unobserve(r.target);
-        }
-      });
-    }, { rootMargin: "0px 0px -10% 0px" });
-    items.forEach(function (n) { entryObserver.observe(n); });
+    if (!entries.length) list.appendChild(el("li", { class: "log-empty", text: ui("notebook.empty") }));
   }
 
   function renderContact() {
@@ -576,42 +446,31 @@
     const link = document.getElementById("contact-email");
     link.textContent = email;
     link.href = "mailto:" + email;
-    const body = document.getElementById("letter-body");
-    const greeting = ui("contact.greeting", { name: DATA.person.firstName });
-    if (!body.value.trim() || body.value.trim() === state.greeting) body.value = greeting + "\n";
-    state.greeting = greeting;
-    body.removeAttribute("aria-invalid");
-    const hint = document.getElementById("letter-hint");
-    hint.classList.remove("is-error");
-    hint.textContent = ui("contact.hint");
+    linkList(document.getElementById("contact-links"), true);
+    document.getElementById("copy-status").textContent = "";
     document.getElementById("footer-copy").textContent = ui("footer.copy", { year: String(new Date().getFullYear()), name: DATA.person.name });
   }
 
-  function setupContact() {
-    const form = document.getElementById("letter");
-    form.addEventListener("submit", function (e) {
-      e.preventDefault();
-      const from = document.getElementById("letter-from").value.trim();
-      const bodyField = document.getElementById("letter-body");
-      const body = bodyField.value.trim();
-      const hint = document.getElementById("letter-hint");
-      clearTimeout(state.mailTimer);
-      if (!body || body === state.greeting) {
-        hint.classList.add("is-error");
-        hint.textContent = ui("contact.empty");
-        bodyField.setAttribute("aria-invalid", "true");
-        bodyField.focus();
-        return;
-      }
-      bodyField.removeAttribute("aria-invalid");
-      const subject = from ? ui("contact.subjectFrom", { name: from }) : ui("contact.subject");
-      const signed = from ? body + "\n\n" + from : body;
-      hint.classList.remove("is-error");
-      hint.textContent = ui("contact.opening");
-      window.location.href = "mailto:" + DATA.person.email + "?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(signed);
-      state.mailTimer = setTimeout(function () {
-        if (document.hasFocus()) hint.textContent = ui("contact.fallback", { email: DATA.person.email });
-      }, 1600);
+  function setupCopy() {
+    const button = document.getElementById("copy-email");
+    const status = document.getElementById("copy-status");
+    if (!button) return;
+    if (!navigator.clipboard || !window.isSecureContext) {
+      button.hidden = true;
+      return;
+    }
+    button.addEventListener("click", function () {
+      navigator.clipboard.writeText(DATA.person.email).then(function () {
+        clearTimeout(state.copyTimer);
+        status.textContent = ui("contact.copied");
+        button.classList.add("is-done");
+        state.copyTimer = setTimeout(function () {
+          status.textContent = "";
+          button.classList.remove("is-done");
+        }, 2200);
+      }).catch(function () {
+        status.textContent = DATA.person.email;
+      });
     });
   }
 
@@ -627,10 +486,10 @@
     });
   }
 
-  function setupRail() {
-    const groups = [Array.prototype.slice.call(document.querySelectorAll(".topnav-links a"))];
-    const sections = groups[0].map(function (a) { return document.getElementById(a.getAttribute("data-target")); });
-    const nav = document.getElementById("topnav");
+  function setupMasthead() {
+    const links = Array.prototype.slice.call(document.querySelectorAll(".masthead-nav a"));
+    const sections = links.map(function (a) { return document.getElementById(a.getAttribute("data-target")); });
+    const masthead = document.getElementById("masthead");
     const hero = document.getElementById("top");
     let ticking = false;
     function update() {
@@ -638,12 +497,13 @@
       const vh = window.innerHeight;
       let active = -1;
       sections.forEach(function (s, i) {
-        if (s && s.getBoundingClientRect().top < vh * 0.45) active = i;
+        if (s && s.getBoundingClientRect().top < vh * 0.4) active = i;
       });
-      groups.forEach(function (links) {
-        links.forEach(function (a, i) { a.setAttribute("aria-current", String(i === active)); });
+      links.forEach(function (a, i) {
+        if (i === active) a.setAttribute("aria-current", "true");
+        else a.removeAttribute("aria-current");
       });
-      if (nav && hero) nav.classList.toggle("is-past-hero", hero.getBoundingClientRect().bottom < 72);
+      if (masthead && hero) masthead.classList.toggle("is-solid", hero.getBoundingClientRect().bottom < 64);
     }
     window.addEventListener("scroll", function () {
       if (!ticking) {
@@ -672,92 +532,13 @@
     setInterval(tick, 15000);
   }
 
-  function scrambleOnce(word, settle) {
-    const target = ui("hero.noise");
-    let out = "";
-    for (let i = 0; i < target.length; i++) {
-      out += settle && Math.random() < settle ? target[i] : NOISE_GLYPHS[Math.floor(Math.random() * NOISE_GLYPHS.length)];
-    }
-    word.textContent = out;
-  }
-
-  function settleNoiseWord() {
-    const word = document.getElementById("noise-word");
-    if (word && (heroState === "done" || reduceMotion)) word.textContent = ui("hero.noise");
-  }
-
-  function runNoise(ms) {
-    const word = document.getElementById("noise-word");
-    if (!word || reduceMotion) return;
-    clearInterval(noiseTimer);
-    const started = performance.now();
-    noiseTimer = setInterval(function () {
-      const elapsed = performance.now() - started;
-      if (heroState === "done" && (!ms || elapsed > ms)) {
-        clearInterval(noiseTimer);
-        word.textContent = ui("hero.noise");
-        return;
-      }
-      scrambleOnce(word, heroState === "done" ? elapsed / ms : 0.15);
-    }, 70);
-  }
-
-  function setupNoiseWord() {
-    const fit = document.getElementById("hero-fit");
-    heroState = fit ? fit.getAttribute("data-state") || "fitting" : "done";
-    document.addEventListener("hero:state", function (e) {
-      heroState = e.detail.state;
-      if (heroState !== "done") runNoise(0);
-    });
-    const word = document.getElementById("noise-word");
-    if (word) {
-      word.parentNode.addEventListener("pointerenter", function () {
-        if (heroState === "done") runNoise(650);
-      });
-    }
-    if (heroState !== "done") runNoise(0); else settleNoiseWord();
-  }
-
-  function setupReveal() {
-    const titles = document.querySelectorAll(".section-title");
-    if (reduceMotion || !("IntersectionObserver" in window)) return;
-    document.documentElement.classList.add("can-reveal");
-    const io = new IntersectionObserver(function (records) {
-      records.forEach(function (r) {
-        if (r.isIntersecting) {
-          r.target.classList.add("is-revealed");
-          io.unobserve(r.target);
-        }
-      });
-    }, { rootMargin: "0px 0px -12% 0px" });
-    titles.forEach(function (t) { io.observe(t); });
-  }
-
-  function setupSignature() {
-    const sig = document.getElementById("signature");
-    if (!sig) return;
-    sig.textContent = DATA.person.name;
-    if (reduceMotion || !("IntersectionObserver" in window)) {
-      sig.classList.add("is-signed");
-      return;
-    }
-    const io = new IntersectionObserver(function (records) {
-      if (records[0].isIntersecting) {
-        setTimeout(function () { sig.classList.add("is-signed"); }, 250);
-        io.disconnect();
-      }
-    }, { threshold: 0.6 });
-    io.observe(sig);
-  }
-
   function renderAll() {
     applyStaticText();
     renderHero();
     renderAbout();
-    renderStat();
-    renderSkills();
+    renderExpertise();
     renderWork();
-    renderNotebook(false);
+    renderNotebook();
     renderContact();
     if (state.openIndex >= 0) fillDialog();
     document.dispatchEvent(new CustomEvent("portfolio:rendered", { detail: { lang: state.lang } }));
@@ -767,11 +548,8 @@
   state.settled = true;
   setupLanguage();
   setupDialog();
-  setupContact();
-  setupRail();
-  setupSignature();
+  setupCopy();
+  setupMasthead();
   setupMarquee();
   setupClock();
-  setupNoiseWord();
-  setupReveal();
 })();
