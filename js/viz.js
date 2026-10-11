@@ -189,8 +189,9 @@
       }
     });
     const axisY = top + rows.length * rowH + 4;
-    (spec.ticks || []).forEach(function (tk) {
-      body += text(scale(tk, lo, hi, xa, xb), axisY + 6, tk, { anchor: "middle", size: 5.6 });
+    (spec.ticks || []).forEach(function (tk, i) {
+      const label = spec.tickLabels && spec.tickLabels[i] != null ? spec.tickLabels[i] : tk;
+      body += text(scale(tk, lo, hi, xa, xb), axisY + 6, label, { anchor: "middle", size: 5.6 });
     });
     if (spec.footer) body += text(SIZE - PAD, SIZE - 8, spec.footer, { anchor: "end", size: 5.8 });
     return frame(body, spec.caption);

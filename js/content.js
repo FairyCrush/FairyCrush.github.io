@@ -252,6 +252,7 @@ window.PORTFOLIO = {
         reference: 0.257,
         referenceLabel: { en: "region only", id: "region saja" },
         ticks: [0, 0.1, 0.2, 0.3],
+        tickLabels: { en: ["0", "0.1", "0.2", "0.3"], id: ["0", "0,1", "0,2", "0,3"] },
         caption: { en: "out-of-fold R², without → with indicators", id: "R² out-of-fold, tanpa → dengan indikator" },
         rows: [
           { label: { en: "Mean", id: "Rata-rata" }, values: [-0.022] },
@@ -338,6 +339,51 @@ window.PORTFOLIO = {
           { label: "AE", metric: "SSIM", before: 0.412, after: 0.677, beforeText: "0.41", afterText: "0.68" },
           { label: "cGAN", metric: "FID", before: 282.52, after: 245.4, beforeText: "282.5", afterText: "245.4", lowerBetter: true }
         ]
+      }
+    },
+    {
+      id: "underwater",
+      year: "2026",
+      context: { en: "Deep Learning course project · team of 5 · May 2026", id: "Proyek kuliah Deep Learning · tim 5 orang · Mei 2026" },
+      title: { en: "Underwater Image Enhancement", id: "Perbaikan Citra Bawah Air" },
+      lead: {
+        en: "Three models trained to restore color and contrast in underwater photos. A plain encoder-decoder (SSIM 0.7309) stayed below the raw input's average over all pairs (0.7835), adding skip connections alone raised it to 0.8463, and a U-Net with a pretrained EfficientNet-B0 encoder reached 0.9175.",
+        id: "Tiga model dilatih untuk memulihkan warna dan kontras foto bawah air. Skor encoder-decoder biasa (SSIM 0,7309) masih di bawah rata-rata input mentah di semua pasangan (0,7835). Cukup dengan menambah skip connection, skornya naik ke 0,8463, dan U-Net dengan encoder EfficientNet-B0 pretrained mencapai 0,9175."
+      },
+      problem: {
+        en: "Water absorbs red light first, so underwater photos come out green-blue, low in contrast and short on detail. Across the 4,279 LSUI pairs, the mean red channel value (0 to 255) is 59.5 in the raw input and 95.2 in the reference images.",
+        id: "Air menyerap cahaya merah paling dulu, sehingga foto bawah air tampak hijau kebiruan, kontrasnya rendah, dan detailnya hilang. Di 4.279 pasangan gambar LSUI, rata-rata nilai kanal merah (skala 0 sampai 255) di input mentah cuma 59,5, sedangkan di gambar referensinya 95,2."
+      },
+      approach: {
+        en: "Every image was resized to 256×256, and the 4,279 pairs were split 70/15/15 into 2,995 training, 641 validation and 643 test pairs. All three models used the same MSE loss, Adam at 1e-3 and 50 epochs. Models 1 and 2 differ only in the skip connections: a plain CNN encoder-decoder (1.70M parameters) and the same network as a U-Net (1.88M). Model 3 swaps in an ImageNet-pretrained EfficientNet-B0 encoder through segmentation_models_pytorch, which changes the encoder design, the size (6.25M) and the starting weights at once. The weights with the lowest validation loss were kept. Each model was scored on the test pairs with SSIM, PSNR and MSE against the reference images, and its SSIM was compared with the raw input's average SSIM over all pairs (0.7835).",
+        id: "Semua gambar di-resize ke 256×256, lalu 4.279 pasangannya dibagi 70/15/15 jadi 2.995 pasangan latih, 641 validasi, dan 643 uji. Ketiga model memakai setelan yang sama: loss MSE, Adam 1e-3, dan 50 epoch. Model 1 dan 2 cuma beda di skip connection, yaitu CNN encoder-decoder biasa (1,70 juta parameter) dan jaringan yang sama dalam bentuk U-Net (1,88 juta). Model 3 memakai encoder EfficientNet-B0 yang sudah di-pretrain di ImageNet lewat segmentation_models_pytorch, jadi desain encoder, ukuran (6,25 juta), dan bobot awalnya berubah sekaligus. Yang disimpan adalah bobot dengan val loss terendah. Tiap model dinilai di data uji pakai SSIM, PSNR, dan MSE terhadap gambar referensi, lalu SSIM-nya dibandingkan dengan rata-rata SSIM input mentah di semua pasangan (0,7835)."
+      },
+      metrics: [
+        { label: { en: "Test SSIM, U-Net + EfficientNet-B0", id: "SSIM uji, U-Net + EfficientNet-B0" }, value: "0.9175", note: { en: "raw input, all 4,279 pairs: 0.7835", id: "input mentah, semua 4.279 pasangan: 0,7835" } },
+        { label: { en: "Test SSIM, U-Net", id: "SSIM uji, U-Net" }, value: "0.8463", note: { en: "skip connections, 11% more parameters", id: "skip connection, parameternya cuma naik 11%" } },
+        { label: { en: "Test SSIM, plain CNN encoder-decoder", id: "SSIM uji, CNN encoder-decoder biasa" }, value: "0.7309", note: { en: "below the raw-input average; sample outputs looked color-corrected but blurred", id: "di bawah rata-rata input mentah; di sampel, warnanya terlihat membaik tapi gambarnya blur" } },
+        { label: { en: "PSNR, best model", id: "PSNR, model terbaik" }, value: "25.28 dB", note: { en: "CNN 19.02 dB · U-Net 19.84 dB", id: "CNN 19,02 dB · U-Net 19,84 dB" } },
+        { label: { en: "MSE (0 to 255 scale), best model", id: "MSE (skala 0 sampai 255), model terbaik" }, value: "293.67", note: { en: "CNN 969.97 · U-Net 890.74", id: "CNN 969,97 · U-Net 890,74" } },
+        { label: { en: "Image pairs (LSUI)", id: "Pasangan gambar (LSUI)" }, value: "4,279", note: { en: "2,995 train · 641 validation · 643 test", id: "2.995 latih · 641 validasi · 643 uji" } }
+      ],
+      headline: 0,
+      stack: ["PyTorch", "segmentation_models_pytorch", "EfficientNet-B0", "scikit-image", "Google Colab"],
+      caveat: { en: "Team result, with one training run per model at 256×256. A second CNN run saved in the notebook scored 0.7277 SSIM. The raw-input baseline (0.7835) covers all 4,279 pairs, while the models were scored on 643 test pairs taken as the last 15% of the sorted file list, so the comparison with the baseline is approximate.", id: "Hasil tim, dengan satu kali training per model di 256×256. Run CNN lain yang tersimpan di notebook dapat SSIM 0,7277. Baseline input mentah (0,7835) diukur di semua 4.279 pasangan, sedangkan modelnya dinilai di 643 pasangan uji, yaitu 15% terakhir dari daftar file yang diurutkan, jadi perbandingan dengan baseline-nya cuma perkiraan." },
+      viz: {
+        type: "ladder",
+        min: 0.6,
+        max: 1,
+        reference: 0.7835,
+        referenceLabel: { en: "raw input, all pairs", id: "input mentah, semua pasangan" },
+        ticks: [0.6, 0.7, 0.8, 0.9, 1],
+        tickLabels: { en: ["0.6", "0.7", "0.8", "0.9", "1"], id: ["0,6", "0,7", "0,8", "0,9", "1"] },
+        caption: { en: "SSIM, raw input → model", id: "SSIM, input mentah → model" },
+        rows: [
+          { label: "CNN", values: [0.7835, 0.7309] },
+          { label: "U-Net", values: [0.7835, 0.8463] },
+          { label: "EffNet U-Net", values: [0.7835, 0.9175], hot: true }
+        ],
+        footer: { en: "models: 643 test images", id: "model: 643 gambar uji" }
       }
     },
     {
@@ -711,6 +757,19 @@ window.PORTFOLIO = {
       summary: {
         en: "The core analysis engine, the join, the computer-vision service and the module registry went into git.",
         id: "Engine analisis inti, fitur join, service computer vision, dan registry modul masuk ke git."
+      }
+    },
+    {
+      date: "2026-05-27",
+      project: "underwater",
+      title: { en: "Underwater enhancement: EfficientNet-B0 U-Net reaches SSIM 0.9175", id: "Perbaikan citra bawah air: U-Net EfficientNet-B0 tembus SSIM 0,9175" },
+      summary: {
+        en: "Team project of five. Three models were scored on 643 test images: the plain CNN (0.7309) stayed below the raw input's average SSIM over all pairs (0.7835), U-Net passed it at 0.8463, and U-Net with EfficientNet-B0 led on SSIM, PSNR and MSE.",
+        id: "Proyek tim 5 orang. Tiga model dinilai di 643 gambar uji: skor CNN biasa (0,7309) masih di bawah rata-rata SSIM input mentah di semua pasangan (0,7835), U-Net berhasil melampauinya dengan 0,8463, dan U-Net dengan EfficientNet-B0 unggul di SSIM, PSNR, dan MSE."
+      },
+      more: {
+        en: "In sample outputs the CNN corrected the color but blurred the image. Skip connections were the cheapest gain at 11% more parameters. Switching to the EfficientNet-B0 U-Net gave the biggest jump in pixel-level accuracy: PSNR rose from 19.84 to 25.28 dB and MSE fell from 890.74 to 293.67. That step also more than tripled the network size, so a single run cannot tell how much came from pretraining.",
+        id: "Di sampel output, CNN-nya berhasil membetulkan warna tapi gambarnya jadi blur. Skip connection adalah peningkatan paling murah karena parameternya cuma bertambah 11%. Pindah ke U-Net EfficientNet-B0 memberi lonjakan akurasi tingkat piksel paling besar: PSNR naik dari 19,84 ke 25,28 dB dan MSE turun dari 890,74 ke 293,67. Langkah itu juga membuat ukuran jaringannya lebih dari tiga kali lipat, jadi dari satu run saja belum bisa dipisahkan seberapa besar andil pretraining-nya."
       }
     },
     {
